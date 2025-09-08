@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Bonus Update數據比較工具</title>
+    <meta charset="UTF-8">
+    <style>
+        body { font-family: Arial; margin: 20px; background: #f0f8ff; }
+        .container { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; max-width: 2000px; margin: 0 auto; }
+        .section { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        textarea { width: 100%; height: 300px; padding: 10px; border: 2px solid #007bff; border-radius: 5px; font-family: monospace; }
+        button { background: #007bff; color: white; padding: 12px 20px; border: none; border-radius: 5px; cursor: pointer; margin: 10px 5px; }
+        button:hover { background: #0056b3; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { border: 2px solid #ddd; padding: 10px; text-align: center; }
+        th { background: #e9ecef; font-weight: bold; }
+        .debug-info { background: #fff3cd; padding: 15px; border-radius: 5px; margin: 10px 0; }
+        .result-table { background: #f8f9fa; }
+        .pass { background: #d4edda; }
+        .fail { background: #f8d7da; }
+        .not-found { background: #fff3cd; }
+        .hidden { display: none; }
+        .increase { color: green; font-weight: bold; }
+        .decrease { color: red; font-weight: bold; }
+        .no-change { color: blue; font-weight: bold; }
+        .expired { color: #999; text-decoration: line-through; }
+        .no-product { color: #6c757d; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Bonus Update 比較工具</h1>
+    
+    <div class="container">
+        <div class="section">
+            <h2>📋 A數據（客戶100新數值）</h2>
+            <textarea id="tableA" placeholder="請貼上A網頁的表格數據...">Bonus
+
+
+
+
+
+
+
+STD	0	100	%	
+D
+Rows per page:
+
+20
+1–1 of 1</textarea>
+        </div>
+
+        <div class="section">
+            <h2>📋 B數據（客戶100原數值）</h2>
+            <textarea id="tableB" placeholder="請貼上B網頁的表格數據...">Details ( Active )
+====================================================================================================================
+ 	Rebate Type	Selection	Min. Lot	Start Date	End Date	Unit	Amount	Method
+ 	Trade Comm	STD	0.00	2024/11/26	
+%	100.00	Direct
+Add Row</textarea>
+        </div>
+
+        <div class="section">
+            <h2>📋 C數據（客戶101數值）</h2>
+            <textarea id="tableC" placeholder="請貼上C網頁的表格數據...">Details ( Active )
+====================================================================================================================
+ 	Rebate Type	Selection	Min. Lot	Start Date	End Date	Unit	Amount	Method
+ 	Trade Comm	STD	0.00	2024/11/26	
+%	90.00	Direct
+Add Row</textarea>
+        </div>
+
+        <div class="section" style="grid-column: 1 / -1;">
+            <h2>📊 解析與核對結果</h2>
+            <button onclick="parseAndCheck()">開始解析與核對</button>
+            <button onclick="clearAll()">清空所有</button>
+            
+            <div id="finalResult"></div>
+            <div id="debugResult"></div>
+        </div>
+    </div>
+
+    <script>
+        // 產品名稱映射表
+        const productMapping = {
+            'Forex': 'STD_FX',
+            '外匯': 'STD_FX',
+            'Gold': 'STD_GOLD',
+            '黃金': 'STD_GOLD',
+            'Silver': 'STD_SILVER',
+            '白銀': 'STD_SILVER',
+            'Oil': 'STD_OIL',
+            '原油': 'STD_OIL',
+            'GASUSD': 'STD_GAS',
+            '天然氣': 'STD_GAS',
+            'HKG33': 'STD_HKG33',
+            '恒生指數': 'STD_HKG33',
+            'NAS100': 'STD_NAS100',
+            '納斯達克100指數': 'STD_NAS100',
+            'SPX500': 'STD_SPX500',
+            '標普500指數': 'STD_SPX500',
+            'US30': 'STD_US30',
+            '道瓊斯指數': 'STD_US30',
+            'A50': 'STD_A50',
+            '中華A50指數': 'STD_A50',
+            'JPN225': 'STD_JPN225',
+            '日經225指數': 'STD_JPN225',
+            'GER30': 'STD_GER30',
+            '德國DAX指數': 'STD_GER30',
+            'GAUCNH': 'STD_GAUCNH',
+            '人民幣黃金': 'STD_GAUCNH',
+            'AUS200': 'STD_AUS200',
+            '澳洲200指數': 'STD_AUS200',
+            'STD': 'STD',
+            '標準': 'STD'
+        };
+
+        // 檢查日期是否在有效範圍內（當前日期在開始日期和結束日期之間）
+        function isDateValid(startDate, endDate) {
+            const today = new Date();
+            
+            // 處理開始日期
+            if (startDate && startDate.trim() !== '') {
+                const start = new Date(startDate.replace(/\//g, '-'));
+                if (start > today) return false; // 開始日期在未來
+            }
+            
+            // 處理結束日期
+            if (endDate && endDate.trim() !== '') {
+                const end = new Date(endDate.replace(/\//g, '-'));
+                if (end < today) return false; // 結束日期在過去
+            }
+            
+            return true;
+        }
+
+        // 比較兩個日期，返回較晚的日期
+        function compareDates(date1, date2) {
+            if (!date1 && !date2) return null;
+            if (!date1) return date2;
+            if (!date2) return date1;
+            
+            const d1 = new Date(date1.replace(/\//g, '-'));
+            const d2 = new Date(date2.replace(/\//g, '-'));
+            
+            return d1 > d2 ? date1 : date2;
+        }
+
+        function parseAndCheck() {
+            const tableA = document.getElementById('tableA').value;
+            const tableB = document.getElementById('tableB').value;
+            const tableC = document.getElementById('tableC').value;
+            
+            let debugHTML = '';
+            let resultHTML = '';
+            
+            // 解析A網頁數據（客戶100新數值）
+            const linesA = tableA.trim().split('\n');
+            
+            const dataA = [];
+            let skipNext = false;
+            
+            for (let i = 0; i < linesA.length; i++) {
+                if (skipNext) {
+                    skipNext = false;
+                    continue;
+                }
+                
+                const values = linesA[i].split('\t');
+                
+                // 跳過開頭的空白行和標題行
+                if (i < 6 || values[0] === 'Bonus' || values[0] === 'Rows per page:' || values[0] === '' || values[0] === '1–14 of 14') {
+                    continue;
+                }
+                
+                // 檢查是否是數據行（包含數值）
+                if (values.length >= 4 && !isNaN(values[1])) {
+                    const nextLineValues = i + 1 < linesA.length ? linesA[i + 1].split('\t') : [];
+                    const method = nextLineValues[0] || '';
+                    
+                    if (method === 'O' || method === 'D') {
+                        dataA.push({
+                            product: values[0],
+                            value1: parseInt(values[1]),
+                            value2: parseFloat(values[2]),
+                            unit: values[3],
+                            method: method
+                        });
+                        skipNext = true; // 跳過下一行（方法行）
+                    }
+                }
+            }
+            
+            // 解析B網頁數據（客戶100原數值）
+            const linesB = tableB.trim().split('\n');
+
+            const dataB = [];
+            let headersB = [];
+            skipNext = false;
+
+            for (let i = 0; i < linesB.length; i++) {
+                if (skipNext) {
+                    skipNext = false;
+                    continue;
+                }
+                
+                const values = linesB[i].split('\t');
+                
+                // 忽略前兩行
+                if (i < 2) continue;
+                
+                // 第三行是表頭
+                if (i === 2) {
+                    headersB = values;
+                    continue;
+                }
+                
+                // 檢查是否是數據行
+                if (values.length >= 3 && values[1] && (values[1].includes('Trade Comm') || values[1].includes('Trade Volume'))) {
+                    // 檢查是否是完整的一行數據（有Amount列）
+                    if (values.length >= 8 && values[7]) {
+                        // 完整的一行數據
+                        dataB.push({
+                            rebateType: values[1],
+                            selection: values[2],
+                            minLot: parseFloat(values[3]),
+                            startDate: values[4],
+                            endDate: values[5],
+                            unit: values[6],
+                            amount: parseFloat(values[7]),
+                            method: values[8],
+                            isValid: isDateValid(values[4], values[5])
+                        });
+                    } else {
+                        // 分兩行的數據，下一行是unit, amount, method
+                        if (i + 1 < linesB.length) {
+                            const nextValues = linesB[i + 1].split('\t');
+                            if (nextValues.length >= 3) {
+                                dataB.push({
+                                    rebateType: values[1],
+                                    selection: values[2],
+                                    minLot: parseFloat(values[3]),
+                                    startDate: values[4],
+                                    endDate: values[5] || '', // 可能為空
+                                    unit: nextValues[0],
+                                    amount: parseFloat(nextValues[1]),
+                                    method: nextValues[2],
+                                    isValid: isDateValid(values[4], values[5] || '')
+                                });
+                                skipNext = true; // 跳過下一行
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 解析C網頁數據（客戶101數值）
+            const linesC = tableC.trim().split('\n');
+
+            const dataC = [];
+            let headersC = [];
+            skipNext = false;
+
+            for (let i = 0; i < linesC.length; i++) {
+                if (skipNext) {
+                    skipNext = false;
+                    continue;
+                }
+                
+                const values = linesC[i].split('\t');
+                
+                // 忽略前兩行
+                if (i < 2) continue;
+                
+                // 第三行是表頭
+                if (i === 2) {
+                    headersC = values;
+                    continue;
+                }
+                
+                // 檢查是否是數據行
+                if (values.length >= 3 && values[1] && (values[1].includes('Trade Comm') || values[1].includes('Trade Volume'))) {
+                    // 檢查是否是完整的一行數據（有Amount列）
+                    if (values.length >= 8 && values[7]) {
+                        // 完整的一行數據
+                        dataC.push({
+                            rebateType: values[1],
+                            selection: values[2],
+                            minLot: parseFloat(values[3]),
+                            startDate: values[4],
+                            endDate: values[5],
+                            unit: values[6],
+                            amount: parseFloat(values[7]),
+                            method: values[8],
+                            isValid: isDateValid(values[4], values[5])
+                        });
+                    } else {
+                        // 分兩行的數據，下一行是unit, amount, method
+                        if (i + 1 < linesC.length) {
+                            const nextValues = linesC[i + 1].split('\t');
+                            if (nextValues.length >= 3) {
+                                dataC.push({
+                                    rebateType: values[1],
+                                    selection: values[2],
+                                    minLot: parseFloat(values[3]),
+                                    startDate: values[4],
+                                    endDate: values[5] || '', // 可能為空
+                                    unit: nextValues[0],
+                                    amount: parseFloat(nextValues[1]),
+                                    method: nextValues[2],
+                                    isValid: isDateValid(values[4], values[5] || '')
+                                });
+                                skipNext = true; // 跳過下一行
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 執行核對
+            resultHTML += '<div class="debug-info"><h3>📊 最終核對結果：</h3>';
+            resultHTML += '<table class="result-table"><tr><th>產品</th><th>A數據手數</th><th>客戶100新數值</th><th>B數據Min. Lot</th><th>客戶100原數值</th><th>變化</th><th>合併後的產品</th><th>合併後的手數</th><th>合併後數值</th><th>C數據Min. Lot</th><th>客戶101數值</th><th>比較結果</th><th>有效期</th></tr>';
+
+            // 創建一個包含所有產品和手數組合的集合
+            const allProductLots = new Set();
+
+            // 添加A數據中的產品和手數組合
+            dataA.forEach(rowA => {
+                allProductLots.add(`${rowA.product}|${rowA.value1}`);
+            });
+
+            // 添加B數據中的有效產品和手數組合
+            dataB.forEach(rowB => {
+                if (rowB.isValid) {
+                    const productName = Object.entries(productMapping).find(([key, value]) => value === rowB.selection)?.[0] || rowB.selection;
+                    allProductLots.add(`${productName}|${rowB.minLot}`);
+                }
+            });
+
+            // 處理每個產品和手數組合
+            Array.from(allProductLots).forEach(productLot => {
+                const [productName, lot] = productLot.split('|');
+                const stdName = productMapping[productName] || productName;
+                
+                // 查找A數據中的特定手數記錄
+                const rowA = dataA.find(row => row.product === productName && row.value1 == lot);
+                
+                // 查找B數據中的所有有效匹配記錄
+                const matchesB = dataB.filter(rowB => 
+                    rowB.selection === stdName && 
+                    rowB.minLot == lot &&
+                    rowB.isValid
+                );
+                
+                // 查找C數據中的所有匹配記錄（只比較相同產品，不比較手數）
+                const matchesC = dataC.filter(rowC => 
+                    rowC.selection === stdName
+                );
+                
+                let aLot = 'N/A';
+                let aValue = 'N/A';
+                let aMethod = 'N/A';
+                let originalValue = 'N/A';
+                let bMinLot = 'N/A';
+                let changeStatus = '';
+                let changeClass = '';
+                let mergedLot = 'N/A';
+                let mergedValue = 'N/A';
+                let customer101Value = 'N/A';
+                let cMinLot = 'N/A';
+                let comparisonResult = '';
+                let validityStatus = '';
+                let rowClass = 'not-found';
+                
+                // 處理A數據
+                if (rowA) {
+                    aLot = rowA.value1;
+                    aValue = rowA.value2;
+                    aMethod = rowA.method === 'O' ? 'Override' : 'Direct';
+                }
+                
+                // 處理客戶100原數值(B) - 只處理有效的記錄
+                if (matchesB.length > 0) {
+                    // 選擇結束日期最晚的有效記錄
+                    const selectedMatchB = matchesB.reduce((prev, current) => {
+                        const prevDate = prev.endDate || '';
+                        const currDate = current.endDate || '';
+                        return compareDates(prevDate, currDate) === prevDate ? prev : current;
+                    });
+                    
+                    originalValue = selectedMatchB.amount;
+                    bMinLot = selectedMatchB.minLot;
+                    
+                    // 計算變化和合併數值
+                    if (rowA) {
+                        if (rowA.value2 > originalValue) {
+                            changeStatus = '↑ 增加';
+                            changeClass = 'increase';
+                            mergedValue = rowA.value2; // 使用新數值
+                            mergedLot = rowA.value1; // 使用新手數
+                        } else if (rowA.value2 < originalValue) {
+                            changeStatus = '↓ 減少';
+                            changeClass = 'decrease';
+                            mergedValue = rowA.value2; // 使用新數值
+                            mergedLot = rowA.value1; // 使用新手數
+                        } else {
+                            changeStatus = '→ 不變';
+                            changeClass = 'no-change';
+                            mergedValue = originalValue; // 維持原數值
+                            mergedLot = rowA.value1; // 維持原手數
+                        }
+                    } else {
+                        // 如果A數據中沒有該產品和手數組合，則使用B數據的值
+                        mergedValue = originalValue;
+                        mergedLot = bMinLot;
+                        changeStatus = '→ 無A數據';
+                        changeClass = 'no-change';
+                    }
+                    
+                    // 設置有效期狀態
+                    validityStatus = '有效';
+                } else if (rowA) {
+                    // 如果B數據中沒有有效的該產品和手數組合，但A數據中有，則使用A數據的值
+                    mergedValue = rowA.value2;
+                    mergedLot = rowA.value1;
+                    changeStatus = '→ 無有效B數據';
+                    changeClass = 'no-change';
+                    validityStatus = '僅A數據';
+                }
+                
+                // 處理客戶101數值(C)
+                if (matchesC.length > 0) {
+                    // 首先篩選出有效的記錄
+                    const validMatchesC = matchesC.filter(match => match.isValid);
+                    
+                    // 優先選擇Min. Lot為0的有效記錄
+                    const zeroLotMatches = validMatchesC.filter(match => match.minLot === 0);
+                    
+                    if (zeroLotMatches.length > 0) {
+                        // 選擇結束日期最晚的Min. Lot為0的有效記錄
+                        const selectedMatchC = zeroLotMatches.reduce((prev, current) => {
+                            const prevDate = prev.endDate || '';
+                            const currDate = current.endDate || '';
+                            return compareDates(prevDate, currDate) === prevDate ? prev : current;
+                        });
+                        
+                        customer101Value = selectedMatchC.amount;
+                        cMinLot = selectedMatchC.minLot;
+                        
+                        // 比較合併後的數值和客戶101數值
+                        if (mergedValue !== 'N/A') {
+                            if (mergedValue > customer101Value) {
+                                comparisonResult = '超過客戶101';
+                                rowClass = 'fail';
+                            } else {
+                                comparisonResult = '未超過客戶101';
+                                rowClass = 'pass';
+                            }
+                        } else {
+                            comparisonResult = '無合併數值可比較';
+                            rowClass = 'not-found';
+                        }
+                    } else {
+                        // 沒有Min. Lot為0的有效記錄
+                        comparisonResult = '客戶101沒有該產品(無0手數記錄)';
+                        rowClass = 'fail';
+                        customer101Value = 'N/A';
+                        cMinLot = 'N/A';
+                    }
+                } else {
+                    // 如果C數據中完全沒有該產品的記錄
+                    comparisonResult = '客戶101沒有該產品';
+                    rowClass = 'fail';
+                    customer101Value = 'N/A';
+                    cMinLot = 'N/A';
+                }
+                
+                resultHTML += `<tr class="${rowClass}">
+                    <td>${productName}</td>
+                    <td>${aLot}</td>
+                    <td>${aValue}</td>
+                    <td>${bMinLot}</td>
+                    <td>${originalValue}</td>
+                    <td class="${changeClass}">${changeStatus}</td>
+                    <td>${stdName}</td>
+                    <td>${mergedLot}</td>
+                    <td>${mergedValue}</td>
+                    <td>${cMinLot}</td>
+                    <td>${customer101Value}</td>
+                    <td><strong>${comparisonResult}</strong></td>
+                    <td>${validityStatus}</td>
+                </tr>`;
+            });
+            
+            resultHTML += '</table></div>';
+            
+            // 將最終結果放在最前面
+            document.getElementById('finalResult').innerHTML = resultHTML;
+
+            // 然後顯示解析後的數據
+            debugHTML = '<div class="debug-info"><h3>解析後的A數據（客戶100新數值）：</h3><table><tr><th>產品</th><th>手數</th><th>數值</th><th>單位</th><th>方法</th></tr>';
+            dataA.forEach(row => {
+                debugHTML += `<tr><td>${row.product}</td><td>${row.value1}</td><td>${row.value2}</td><td>${row.unit}</td><td>${row.method === 'O' ? 'Override' : 'Direct'}</td></tr>`;
+            });
+            debugHTML += '</table></div>';
+
+            debugHTML += '<div class="debug-info"><h3>解析後的B數據（客戶100原數值）：</h3><table><tr><th>Rebate Type</th><th>Selection</th><th>Min. Lot</th><th>Start Date</th><th>End Date</th><th>Unit</th><th>Amount</th><th>Method</th><th>有效</th></tr>';
+            dataB.forEach(row => {
+                debugHTML += `<tr>
+                    <td>${row.rebateType}</td>
+                    <td>${row.selection}</td>
+                    <td>${row.minLot}</td>
+                    <td>${row.startDate || '無限期'}</td>
+                    <td>${row.endDate || '無限期'}</td>
+                    <td>${row.unit}</td>
+                    <td>${row.amount}</td>
+                    <td>${row.method}</td>
+                    <td>${row.isValid ? '是' : '否'}</td>
+                </tr>`;
+            });
+            debugHTML += '</table></div>';
+
+            debugHTML += '<div class="debug-info"><h3>解析後的C數據（客戶101數值）：</h3><table><tr><th>Rebate Type</th><th>Selection</th><th>Min. Lot</th><th>Start Date</th><th>End Date</th><th>Unit</th><th>Amount</th><th>Method</th><th>有效</th></tr>';
+            dataC.forEach(row => {
+                debugHTML += `<tr>
+                    <td>${row.rebateType}</td>
+                    <td>${row.selection}</td>
+                    <td>${row.minLot}</td>
+                    <td>${row.startDate || '無限期'}</td>
+                    <td>${row.endDate || '無限期'}</td>
+                    <td>${row.unit}</td>
+                    <td>${row.amount}</td>
+                    <td>${row.method}</td>
+                    <td>${row.isValid ? '是' : '否'}</td>
+                </tr>`;
+            });
+            debugHTML += '</table></div>';
+
+            document.getElementById('debugResult').innerHTML = debugHTML;
+        }
+        
+        function clearAll() {
+            document.getElementById('tableA').value = '';
+            document.getElementById('tableB').value = '';
+            document.getElementById('tableC').value = '';
+            document.getElementById('debugResult').innerHTML = '';
+            document.getElementById('finalResult').innerHTML = '';
+        }
+        
+        // 自動執行解析
+        setTimeout(() => {
+            parseAndCheck();
+        }, 1000);
+    </script>
+</body>
+</html>
