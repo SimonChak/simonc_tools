@@ -64,7 +64,7 @@ Add Row</textarea>
     </div>
 
     <script>
-        // 產品名稱映射表
+        // 產品名稱映射表（已加入 STD=* 的映射）
         const productMapping = {
             'Forex': 'STD_FX',
             '外匯': 'STD_FX',
@@ -94,8 +94,8 @@ Add Row</textarea>
             '人民幣黃金': 'STD_GAUCNH',
             'AUS200': 'STD_AUS200',
             '澳洲200指數': 'STD_AUS200',
-            'STD': 'STD',
-            '標準': 'STD'
+            'STD': ['STD', '*'],  // 支持 STD 和 * 兩種映射
+            '標準': ['STD', '*']   // 支持 STD 和 * 兩種映射
         };
 
         // 檢查日期是否在有效範圍內（當前日期在開始日期和結束日期之間）
@@ -134,6 +134,15 @@ Add Row</textarea>
             if (methodA === 'D' && methodB === 'Direct') return true;
             if (methodA === 'O' && methodB === 'Override') return true;
             return false;
+        }
+
+        // 獲取映射後的產品名稱（支持多值映射）
+        function getMappedProduct(productName) {
+            const mapped = productMapping[productName];
+            if (Array.isArray(mapped)) {
+                return mapped; // 返回所有可能的映射值（如 ['STD', '*']）
+            }
+            return mapped || productName; // 默認返回原名稱
         }
 
         function parseAndCheck() {
@@ -246,14 +255,19 @@ Add Row</textarea>
             resultHTML += '<table class="result-table"><tr><th>產品</th><th>A手數</th><th>A數值</th><th>B Selection</th><th>B Min. Lot</th><th>B數值</th><th>B開始日期</th><th>B結束日期</th><th>A方法</th><th>B方法</th><th>狀態</th></tr>';
             
             dataA.forEach(rowA => {
-                const stdName = productMapping[rowA.product];
+                const mappedProducts = getMappedProduct(rowA.product); // 可能返回数组（如 ['STD', '*']）
+                const productsToCheck = Array.isArray(mappedProducts) ? mappedProducts : [mappedProducts];
                 const overrideValue = rowA.method === 'O' ? 'Override' : 'Direct';
                 
-                // 找出所有匹配的记录
-                const allMatches = dataB.filter(rowB => 
-                    rowB.selection === stdName && 
-                    isMethodMatch(rowA.method, rowB.method)
-                );
+                // 找出所有匹配的记录（检查所有可能的映射值）
+                const allMatches = [];
+                productsToCheck.forEach(product => {
+                    dataB.forEach(rowB => {
+                        if (rowB.selection === product && isMethodMatch(rowA.method, rowB.method)) {
+                            allMatches.push(rowB);
+                        }
+                    });
+                });
                 
                 // 优先选择Min. Lot为0的有效记录
                 const zeroLotMatches = allMatches.filter(rowB => 
