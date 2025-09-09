@@ -249,14 +249,19 @@ Add Row</textarea>
                 const stdName = productMapping[rowA.product];
                 const overrideValue = rowA.method === 'O' ? 'Override' : 'Direct';
                 
-                // 找出所有匹配的记录（A手数 >= B Min. Lot）
-                const matches = dataB.filter(rowB => 
+                // 找出所有匹配的记录
+                const allMatches = dataB.filter(rowB => 
                     rowB.selection === stdName && 
-                    rowA.value1 >= rowB.minLot &&  // 修改这里：A手数需要大于等于B的Min. Lot
                     isMethodMatch(rowA.method, rowB.method)
                 );
                 
-                let status = '❌ 未找到';
+                // 优先选择Min. Lot为0的有效记录
+                const zeroLotMatches = allMatches.filter(rowB => 
+                    rowB.minLot === 0 && 
+                    isDateValid(rowB.startDate, rowB.endDate)
+                );
+                
+                let status = '';
                 let valueB = 'N/A';
                 let bSelection = 'N/A';
                 let bMinLot = 'N/A';
@@ -265,26 +270,17 @@ Add Row</textarea>
                 let bMethod = 'N/A';
                 let rowClass = 'not-found';
                 
-                if (matches.length > 0) {
-                    // 首先筛选出日期有效的记录
-                    const validMatches = matches.filter(match => isDateValid(match.startDate, match.endDate));
-                    
-                    let selectedMatch = null;
-                    
-                    if (validMatches.length === 1) {
-                        selectedMatch = validMatches[0];
-                    } else if (validMatches.length > 1) {
-                        // 如果有多个有效记录，选择Min. Lot最大的（最接近A手数但不大于A手数）
-                        selectedMatch = validMatches.reduce((prev, current) => {
-                            return (current.minLot <= rowA.value1 && current.minLot > prev.minLot) ? current : prev;
-                        }, validMatches[0]);
-                    } else {
-                        // 如果没有有效记录，选择Min. Lot最大的（最接近A手数但不大于A手数）
-                        selectedMatch = matches.reduce((prev, current) => {
-                            return (current.minLot <= rowA.value1 && current.minLot > prev.minLot) ? current : prev;
-                        }, matches[0]);
-                    }
-                    
+                if (allMatches.length === 0) {
+                    // 完全没有该产品的记录
+                    status = '❌ RBO中沒有該產品';
+                    rowClass = 'not-found';
+                } else if (zeroLotMatches.length === 0) {
+                    // 没有Min. Lot为0的有效记录
+                    status = '❌ RBO中沒有該產品(無0手數記錄)';
+                    rowClass = 'not-found';
+                } else {
+                    // 有Min. Lot为0的有效记录，进行比较
+                    const selectedMatch = zeroLotMatches[0];
                     valueB = selectedMatch.amount;
                     bSelection = selectedMatch.selection;
                     bMinLot = selectedMatch.minLot;
@@ -292,21 +288,12 @@ Add Row</textarea>
                     bEndDate = selectedMatch.endDate || '無限期';
                     bMethod = selectedMatch.method;
                     
-                    if (isDateValid(selectedMatch.startDate, selectedMatch.endDate)) {
-                        if (rowA.value2 <= valueB) {  // 修改这里：A数值需要小于等于B数值
-                            status = '✅ 通過';
-                            rowClass = 'pass';
-                        } else {
-                            status = '❌ 不通過';
-                            rowClass = 'fail';
-                        }
+                    if (rowA.value2 <= valueB) {
+                        status = '✅ 通過';
+                        rowClass = 'pass';
                     } else {
-                        if (selectedMatch.startDate && new Date(selectedMatch.startDate.replace(/\//g, '-')) > new Date()) {
-                            status = '⚠️ 未開始';
-                        } else {
-                            status = '⚠️ 已過期';
-                        }
-                        rowClass = 'not-found';
+                        status = '❌ 不通過';
+                        rowClass = 'fail';
                     }
                 }
                 
