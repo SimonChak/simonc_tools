@@ -615,7 +615,7 @@
 
             // 執行核對
             resultHTML += '<div class="debug-info"><h3>📊 最終核對結果：</h3>';
-            resultHTML += '<table class="result-table"><tr><th>產品</th><th>A數據手數</th><th>客戶100新數值</th><th>B數據Min. Lot</th><th>客戶100原數值</th><th>變化</th><th>合併後的產品</th><th>合併後的手數</th><th>合併後數值</th><th>C數據Min. Lot</th><th>客戶101數值</th><th>比較結果</th><th>有效期</th></tr>';
+            resultHTML += '<table class="result-table"><tr><th>產品</th><th>新手數</th><th>新數值</th><th>原數據Min. Lot</th><th>原數值</th><th>變化</th><th>合併後的產品</th><th>合併後的手數</th><th>合併後數值</th><th>C數據Min. Lot</th><th>客戶101數值</th><th>比較結果</th><th>有效期</th></tr>';
 
             // 創建一個包含所有產品和手數組合的集合
             const allProductLots = new Set();
@@ -716,7 +716,7 @@
                 } else if (rowA) {
                     mergedValue = rowA.value2;
                     mergedLot = rowA.value1;
-                    changeStatus = '→ 無有效B數據';
+                    changeStatus = '→ 無有效原數據';
                     changeClass = 'no-change';
                     validityStatus = '僅A數據';
                 }
