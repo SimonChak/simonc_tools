@@ -708,7 +708,7 @@
                     } else {
                         mergedValue = originalValue;
                         mergedLot = bMinLot;
-                        changeStatus = '→ 無A數據';
+                        changeStatus = '→ 只有原數據';
                         changeClass = 'no-change';
                     }
                     
@@ -716,9 +716,9 @@
                 } else if (rowA) {
                     mergedValue = rowA.value2;
                     mergedLot = rowA.value1;
-                    changeStatus = '→ 無有效原數據';
+                    changeStatus = '→ 新增產品';
                     changeClass = 'no-change';
-                    validityStatus = '增加新數據';
+                    validityStatus = '新數據';
                 }
                 
                 // 處理上線數值(C)
