@@ -413,7 +413,7 @@
                         product: productName,
                         value1: parseFloat(lot),
                         value2: parseFloat(value),
-                        unit: '%',
+                        unit: '',
                         method: methodSelect.value
                     });
                 }
@@ -437,7 +437,7 @@
                 html += `<tr>
                     <td>${row.product}</td>
                     <td>${row.value1}</td>
-                    <td>${row.value2}%</td>
+                    <td>${row.value2}</td>
                     <td>${row.method === 'O' ? 'Override' : 'Direct'}</td>
                 </tr>`;
             });
