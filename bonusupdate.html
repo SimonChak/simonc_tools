@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <style>
         body { font-family: Arial; margin: 20px; background: #f0f8ff; }
-        .container { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; max-width: 2000px; margin: 0 auto; }
+        .container { display: grid; grid-template-columns: 1.5fr 1fr 1fr; gap: 20px; max-width: 2000px; margin: 0 auto; }
         .section { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
         textarea { width: 100%; height: 300px; padding: 10px; border: 2px solid #007bff; border-radius: 5px; font-family: monospace; }
         button { background: #007bff; color: white; padding: 12px 20px; border: none; border-radius: 5px; cursor: pointer; margin: 10px 5px; }
@@ -28,6 +28,43 @@
         .select-group { margin-bottom: 15px; }
         .select-group label { display: block; margin-bottom: 5px; font-weight: bold; }
         input[type="number"] { width: 100%; padding: 10px; border: 2px solid #007bff; border-radius: 5px; }
+        #aDataInputs table input[type="number"] { width: 80%; }
+        #aDataInputs { max-height: 500px; overflow-y: auto; }
+        .method-select { width: 120px; }
+        .add-product-btn { background: #28a745; margin: 10px 5px; }
+        .add-product-btn:hover { background: #218838; }
+        .delete-btn { background: #dc3545; padding: 5px 10px; margin-left: 5px; }
+        .delete-btn:hover { background: #c82333; }
+        .primary-btn { 
+            background: #007bff; 
+            font-weight: bold; 
+            padding: 12px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px 5px;
+        }
+        .primary-btn:hover { background: #0056b3; }
+        .action-btn { 
+            background: #6c757d; 
+            font-weight: bold; 
+            padding: 12px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px 5px;
+        }
+        .action-btn:hover { background: #5a6268; }
+        .important-btn { 
+            background: #28a745; 
+            font-weight: bold; 
+            padding: 12px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px 5px;
+        }
+        .important-btn:hover { background: #218838; }
     </style>
 </head>
 <body>
@@ -37,48 +74,213 @@
         <div class="section">
             <h2>📋 A數據（新數值）</h2>
             
-            <div class="select-group">
-                <label for="productSelect">選擇產品:</label>
-                <select id="productSelect">
-                    <option value="STD">STD (標準)</option>
-                    <option value="Forex">Forex (外匯)</option>
-                    <option value="Gold">Gold (黃金)</option>
-                    <option value="Silver">Silver (白銀)</option>
-                    <option value="Oil">Oil (原油)</option>
-                    <option value="GASUSD">GASUSD (天然氣)</option>
-                    <option value="HKG33">HKG33 (恒生指數)</option>
-                    <option value="NAS100">NAS100 (納斯達克100指數)</option>
-                    <option value="SPX500">SPX500 (標普500指數)</option>
-                    <option value="US30">US30 (道瓊斯指數)</option>
-                    <option value="A50">A50 (中華A50指數)</option>
-                    <option value="JPN225">JPN225 (日經225指數)</option>
-                    <option value="GER30">GER30 (德國DAX指數)</option>
-                    <option value="GAUCNH">GAUCNH (人民幣黃金)</option>
-                    <option value="AUS200">AUS200 (澳洲200指數)</option>
-                    <option value="ECN">ECN (ECN)</option>
-                </select>
+            <div id="aDataInputs">
+                <table>
+                    <tr>
+                        <th>產品</th>
+                        <th>手數</th>
+                        <th>數值</th>
+                        <th>方法</th>
+                        <th>操作</th>
+                    </tr>
+                    <tr>
+                        <td>STD (標準)</td>
+                        <td><input type="number" class="lotInput" value="0" min="0"></td>
+                        <td><input type="number" class="valueInput" placeholder="輸入數值"></td>
+                        <td>
+                            <select class="methodSelect">
+                                <option value="D" selected>Direct</option>
+                                <option value="O">Override</option>
+                            </select>
+                        </td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td>Forex (外匯)</td>
+                        <td><input type="number" class="lotInput" value="0" min="0"></td>
+                        <td><input type="number" class="valueInput" placeholder="輸入數值"></td>
+                        <td>
+                            <select class="methodSelect">
+                                <option value="O" selected>Override</option>
+                                <option value="D">Direct</option>
+                            </select>
+                        </td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td>Gold (黃金)</td>
+                        <td><input type="number" class="lotInput" value="0" min="0"></td>
+                        <td><input type="number" class="valueInput" placeholder="輸入數值"></td>
+                        <td>
+                            <select class="methodSelect">
+                                <option value="O" selected>Override</option>
+                                <option value="D">Direct</option>
+                            </select>
+                        </td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td>Silver (白銀)</td>
+                        <td><input type="number" class="lotInput" value="0" min="0"></td>
+                        <td><input type="number" class="valueInput" placeholder="輸入數值"></td>
+                        <td>
+                            <select class="methodSelect">
+                                <option value="O" selected>Override</option>
+                                <option value="D">Direct</option>
+                            </select>
+                        </td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td>Oil (原油)</td>
+                        <td><input type="number" class="lotInput" value="0" min="0"></td>
+                        <td><input type="number" class="valueInput" placeholder="輸入數值"></td>
+                        <td>
+                            <select class="methodSelect">
+                                <option value="O" selected>Override</option>
+                                <option value="D">Direct</option>
+                            </select>
+                        </td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td>GASUSD (天然氣)</td>
+                        <td><input type="number" class="lotInput" value="0" min="0"></td>
+                        <td><input type="number" class="valueInput" placeholder="輸入數值"></td>
+                        <td>
+                            <select class="methodSelect">
+                                <option value="O" selected>Override</option>
+                                <option value="D">Direct</option>
+                            </select>
+                        </td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td>HKG33 (恒生指數)</td>
+                        <td><input type="number" class="lotInput" value="0" min="0"></td>
+                        <td><input type="number" class="valueInput" placeholder="輸入數值"></td>
+                        <td>
+                            <select class="methodSelect">
+                                <option value="O" selected>Override</option>
+                                <option value="D">Direct</option>
+                            </select>
+                        </td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td>NAS100 (納斯達克100指數)</td>
+                        <td><input type="number" class="lotInput" value="0" min="0"></td>
+                        <td><input type="number" class="valueInput" placeholder="輸入數值"></td>
+                        <td>
+                            <select class="methodSelect">
+                                <option value="O" selected>Override</option>
+                                <option value="D">Direct</option>
+                            </select>
+                        </td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td>SPX500 (標普500指數)</td>
+                        <td><input type="number" class="lotInput" value="0" min="0"></td>
+                        <td><input type="number" class="valueInput" placeholder="輸入數值"></td>
+                        <td>
+                            <select class="methodSelect">
+                                <option value="O" selected>Override</option>
+                                <option value="D">Direct</option>
+                            </select>
+                        </td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td>US30 (道瓊斯指數)</td>
+                        <td><input type="number" class="lotInput" value="0" min="0"></td>
+                        <td><input type="number" class="valueInput" placeholder="輸入數值"></td>
+                        <td>
+                            <select class="methodSelect">
+                                <option value="O" selected>Override</option>
+                                <option value="D">Direct</option>
+                            </select>
+                        </td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td>A50 (中華A50指數)</td>
+                        <td><input type="number" class="lotInput" value="0" min="0"></td>
+                        <td><input type="number" class="valueInput" placeholder="輸入數值"></td>
+                        <td>
+                            <select class="methodSelect">
+                                <option value="O" selected>Override</option>
+                                <option value="D">Direct</option>
+                            </select>
+                        </td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td>JPN225 (日經225指數)</td>
+                        <td><input type="number" class="lotInput" value="0" min="0"></td>
+                        <td><input type="number" class="valueInput" placeholder="輸入數值"></td>
+                        <td>
+                            <select class="methodSelect">
+                                <option value="O" selected>Override</option>
+                                <option value="D">Direct</option>
+                            </select>
+                        </td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td>GER30 (德國DAX指數)</td>
+                        <td><input type="number" class="lotInput" value="0" min="0"></td>
+                        <td><input type="number" class="valueInput" placeholder="輸入數值"></td>
+                        <td>
+                            <select class="methodSelect">
+                                <option value="O" selected>Override</option>
+                                <option value="D">Direct</option>
+                            </select>
+                        </td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td>GAUCNH (人民幣黃金)</td>
+                        <td><input type="number" class="lotInput" value="0" min="0"></td>
+                        <td><input type="number" class="valueInput" placeholder="輸入數值"></td>
+                        <td>
+                            <select class="methodSelect">
+                                <option value="O" selected>Override</option>
+                                <option value="D">Direct</option>
+                            </select>
+                        </td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td>AUS200 (澳洲200指數)</td>
+                        <td><input type="number" class="lotInput" value="0" min="0"></td>
+                        <td><input type="number" class="valueInput" placeholder="輸入數值"></td>
+                        <td>
+                            <select class="methodSelect">
+                                <option value="O" selected>Override</option>
+                                <option value="D">Direct</option>
+                            </select>
+                        </td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td>ECN (ECN)</td>
+                        <td><input type="number" class="lotInput" value="0" min="0"></td>
+                        <td><input type="number" class="valueInput" placeholder="輸入數值"></td>
+                        <td>
+                            <select class="methodSelect">
+                                <option value="O" selected>Override</option>
+                                <option value="D">Direct</option>
+                            </select>
+                        </td>
+                        <td></td>
+                    </tr>
+                </table>
             </div>
             
-            <div class="select-group">
-                <label for="lotInput">選擇手數:</label>
-                <input type="number" id="lotInput" placeholder="輸入手數" value="0" min="0">
-            </div>
-            
-            <div class="select-group">
-                <label for="valueInput">輸入數值:</label>
-                <input type="number" id="valueInput" placeholder="輸入數值">
-            </div>
-            
-            <div class="select-group">
-                <label for="methodSelect">選擇方法:</label>
-                <select id="methodSelect">
-                    <option value="D">Direct</option>
-                    <option value="O">Override</option>
-                </select>
-            </div>
-            
-            <button onclick="addRow()">添加數據</button>
-            <button onclick="clearA()">清空A數據</button>
+            <button class="important-btn" onclick="collectAData()">收集A數據</button>
+            <button class="action-btn" onclick="clearA()">清空A數據</button>
+            <button class="add-product-btn" onclick="addProductRow()">➕ 新增產品</button>
             
             <div id="aDataPreview" style="margin-top: 15px; border: 1px solid #ddd; padding: 10px; border-radius: 5px; max-height: 200px; overflow-y: auto;">
                 <p>尚未添加任何數據</p>
@@ -99,8 +301,8 @@
 
         <div class="section" style="grid-column: 1 / -1;">
             <h2>📊 解析與核對結果</h2>
-            <button onclick="parseAndCheck()">開始解析與核對</button>
-            <button onclick="clearAll()">清空所有</button>
+            <button class="important-btn" onclick="parseAndCheck()">開始解析與核對</button>
+            <button class="action-btn" onclick="clearAll()">清空所有</button>
             
             <div id="finalResult"></div>
             <div id="debugResult"></div>
@@ -151,56 +353,73 @@
             return productMapping[productName] || productName;
         }
 
-        // 添加數據到A數據
-        function addRow() {
-            const product = document.getElementById('productSelect').value;
-            const lot = document.getElementById('lotInput').value;
-            const value = document.getElementById('valueInput').value;
-            const method = document.getElementById('methodSelect').value;
+        // 新增產品行
+        function addProductRow() {
+            const table = document.querySelector('#aDataInputs table');
+            const newRow = document.createElement('tr');
             
-            if (!value) {
-                alert('請輸入數值');
-                return;
-            }
+            newRow.innerHTML = `
+                <td><input type="text" class="productInput" placeholder="輸入產品名稱"></td>
+                <td><input type="number" class="lotInput" value="0" min="0"></td>
+                <td><input type="number" class="valueInput" placeholder="輸入數值"></td>
+                <td>
+                    <select class="methodSelect">
+                        <option value="O" selected>Override</option>
+                        <option value="D">Direct</option>
+                    </select>
+                </td>
+                <td><button class="delete-btn" onclick="deleteRow(this)">刪除</button></td>
+            `;
             
-            if (lot === '' || isNaN(lot)) {
-                alert('請輸入有效的手數');
-                return;
-            }
+            table.appendChild(newRow);
+        }
+
+        // 刪除行
+        function deleteRow(button) {
+            const row = button.closest('tr');
+            row.remove();
+        }
+
+        // 收集A數據
+        function collectAData() {
+            aData = []; // 清空现有数据
             
-            // 標準化產品名稱
-            const normalizedProduct = normalizeProductName(product);
+            const rows = document.querySelectorAll('#aDataInputs table tr:not(:first-child)');
             
-            // 查找是否已存在相同產品和手數的記錄
-            const existingIndex = aData.findIndex(item => 
-                normalizeProductName(item.product) === normalizedProduct && item.value1 == lot
-            );
+            rows.forEach(row => {
+                // 获取产品名称 - 统一处理方式
+                let productName = '';
+                const productInput = row.querySelector('.productInput');
+                const productCell = row.querySelector('td:first-child');
+                
+                if (productInput) {
+                    // 新增的行有输入框
+                    productName = productInput.value.trim();
+                } else if (productCell) {
+                    // 预设的行没有输入框，直接获取单元格文本
+                    productName = productCell.textContent.split(' ')[0].trim();
+                }
+                
+                const lotInput = row.querySelector('.lotInput');
+                const valueInput = row.querySelector('.valueInput');
+                const methodSelect = row.querySelector('.methodSelect');
+                
+                // 检查数值是否为0或空，如果是则不收集
+                if (productName && valueInput && valueInput.value.trim() && !isNaN(valueInput.value.trim()) && parseFloat(valueInput.value.trim()) !== 0) {
+                    const value = valueInput.value.trim();
+                    const lot = lotInput.value.trim();
+                    
+                    aData.push({
+                        product: productName,
+                        value1: parseFloat(lot),
+                        value2: parseFloat(value),
+                        unit: '%',
+                        method: methodSelect.value
+                    });
+                }
+            });
             
-            if (existingIndex >= 0) {
-                // 更新現有記錄
-                aData[existingIndex] = {
-                    product: product,
-                    value1: parseInt(lot),
-                    value2: parseFloat(value),
-                    unit: '%',
-                    method: method
-                };
-            } else {
-                // 添加新記錄
-                aData.push({
-                    product: product,
-                    value1: parseInt(lot),
-                    value2: parseFloat(value),
-                    unit: '%/USD',
-                    method: method
-                });
-            }
-            
-            // 更新預覽
             updateAPreview();
-            
-            // 清空輸入值
-            document.getElementById('valueInput').value = '';
         }
 
         // 更新A數據預覽
@@ -212,7 +431,7 @@
                 return;
             }
             
-            let html = '<table style="width:100%;"><tr><th>產品</th><th>手數</th><th>數值</th><th>方法</th><th>操作</th></tr>';
+            let html = '<table style="width:100%;"><tr><th>產品</th><th>手數</th><th>數值</th><th>方法</th></tr>';
             
             aData.forEach((row, index) => {
                 html += `<tr>
@@ -220,7 +439,6 @@
                     <td>${row.value1}</td>
                     <td>${row.value2}%</td>
                     <td>${row.method === 'O' ? 'Override' : 'Direct'}</td>
-                    <td><button onclick="removeRow(${index})" style="padding:5px;background:#dc3545;">刪除</button></td>
                 </tr>`;
             });
             
@@ -228,15 +446,22 @@
             previewDiv.innerHTML = html;
         }
 
-        // 刪除A數據中的一行
-        function removeRow(index) {
-            aData.splice(index, 1);
-            updateAPreview();
-        }
-
         // 清空A數據
         function clearA() {
             aData = [];
+            document.querySelectorAll('.valueInput').forEach(input => {
+                input.value = '';
+            });
+            document.querySelectorAll('.lotInput').forEach(input => {
+                input.value = '0';
+            });
+            document.querySelectorAll('.productInput').forEach(input => {
+                input.value = '';
+            });
+            // 重置方法选择
+            document.querySelectorAll('.methodSelect').forEach((select, index) => {
+                select.value = index === 0 ? 'D' : 'O'; // 第一个是STD，默认D，其他默认O
+            });
             updateAPreview();
         }
 
@@ -600,11 +825,24 @@
         
         function clearAll() {
             aData = [];
-            updateAPreview();
+            document.querySelectorAll('.valueInput').forEach(input => {
+                input.value = '';
+            });
+            document.querySelectorAll('.lotInput').forEach(input => {
+                input.value = '0';
+            });
+            document.querySelectorAll('.productInput').forEach(input => {
+                input.value = '';
+            });
+            // 重置方法选择
+            document.querySelectorAll('.methodSelect').forEach((select, index) => {
+                select.value = index === 0 ? 'D' : 'O'; // 第一个是STD，默认D，其他默认O
+            });
             document.getElementById('tableB').value = '';
             document.getElementById('tableC').value = '';
             document.getElementById('debugResult').innerHTML = '';
             document.getElementById('finalResult').innerHTML = '';
+            updateAPreview();
         }
     </script>
 </body>
