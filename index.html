@@ -34,13 +34,18 @@
 
 
 
-
-STD	0	100	%	
+STD	Forex	0	5	USD	
+O
+STD	Gold	0	12.5	USD	
+O
+STD	Oil	0	10	USD	
+O
+STD	STD	0	100	%	
 D
 Rows per page:
 
-20
-1–1 of 1</textarea>
+10
+1–4 of 4</textarea>
         </div>
 
         <div class="section">
@@ -152,7 +157,7 @@ Add Row</textarea>
             let debugHTML = '';
             let resultHTML = '';
             
-            // 解析Portal網頁數據（交錯格式）
+            // 解析Portal網頁數據（新格式）
             const linesA = tableA.trim().split('\n');
             
             const dataA = [];
@@ -167,21 +172,22 @@ Add Row</textarea>
                 const values = linesA[i].split('\t');
                 
                 // 跳過開頭的空白行和標題行
-                if (i < 6 || values[0] === 'Bonus' || values[0] === 'Rows per page:' || values[0] === '' || values[0] === '1–14 of 14') {
+                if (i < 6 || values[0] === 'Bonus' || values[0] === 'Rows per page:' || values[0] === '' || values[0].match(/^\d+–\d+ of \d+$/)) {
                     continue;
                 }
                 
                 // 檢查是否是數據行（包含數值）
-                if (values.length >= 4 && !isNaN(values[1])) {
+                if (values.length >= 5 && !isNaN(values[3])) {
                     const nextLineValues = i + 1 < linesA.length ? linesA[i + 1].split('\t') : [];
                     const method = nextLineValues[0] || '';
                     
                     if (method === 'O' || method === 'D') {
                         dataA.push({
-                            product: values[0],
-                            value1: parseInt(values[1]),
-                            value2: parseFloat(values[2]),
-                            unit: values[3],
+                            productType: values[0], // 新增的產品類型字段
+                            product: values[1],     // 產品名稱
+                            value1: parseInt(values[2]),
+                            value2: parseFloat(values[3]),
+                            unit: values[4],
                             method: method
                         });
                         skipNext = true; // 跳過下一行（方法行）
@@ -252,7 +258,7 @@ Add Row</textarea>
 
             // 執行核對
             resultHTML += '<div class="debug-info"><h3>📊 最終核對結果：</h3>';
-            resultHTML += '<table class="result-table"><tr><th>產品</th><th>A手數</th><th>A數值</th><th>B Selection</th><th>B Min. Lot</th><th>B數值</th><th>B開始日期</th><th>B結束日期</th><th>A方法</th><th>B方法</th><th>狀態</th></tr>';
+            resultHTML += '<table class="result-table"><tr><th>產品類型</th><th>產品</th><th>A手數</th><th>A數值</th><th>B Selection</th><th>B Min. Lot</th><th>B數值</th><th>B開始日期</th><th>B結束日期</th><th>A方法</th><th>B方法</th><th>狀態</th></tr>';
             
             dataA.forEach(rowA => {
                 const mappedProducts = getMappedProduct(rowA.product); // 可能返回数组（如 ['STD', '*']）
@@ -312,6 +318,7 @@ Add Row</textarea>
                 }
                 
                 resultHTML += `<tr class="${rowClass}">
+                    <td>${rowA.productType}</td>
                     <td>${rowA.product}</td>
                     <td>${rowA.value1}</td>
                     <td>${rowA.value2}</td>
@@ -332,9 +339,9 @@ Add Row</textarea>
             document.getElementById('finalResult').innerHTML = resultHTML;
 
             // 然後顯示解析後的數據
-            debugHTML = '<div class="debug-info"><h3>解析後的A數據：</h3><table><tr><th>產品</th><th>手數</th><th>數值</th><th>單位</th><th>方法</th></tr>';
+            debugHTML = '<div class="debug-info"><h3>解析後的A數據：</h3><table><tr><th>產品類型</th><th>產品</th><th>手數</th><th>數值</th><th>單位</th><th>方法</th></tr>';
             dataA.forEach(row => {
-                debugHTML += `<tr><td>${row.product}</td><td>${row.value1}</td><td>${row.value2}</td><td>${row.unit}</td><td>${row.method === 'O' ? 'Override' : 'Direct'}</td></tr>`;
+                debugHTML += `<tr><td>${row.productType}</td><td>${row.product}</td><td>${row.value1}</td><td>${row.value2}</td><td>${row.unit}</td><td>${row.method === 'O' ? 'Override' : 'Direct'}</td></tr>`;
             });
             debugHTML += '</table></div>';
 
