@@ -18,6 +18,7 @@
         .pass { background: #d4edda; }
         .fail { background: #f8d7da; }
         .not-found { background: #fff3cd; }
+        .method-mismatch { background: #ffeaa7; }
         .hidden { display: none; }
     </style>
 </head>
@@ -49,6 +50,8 @@ Rows per page:
             <textarea id="tableB" placeholder="請貼上RBO網頁的表格數據...">Details ( Active )
 ====================================================================================================================
  	Rebate Type	Selection	Min. Lot	Start Date	End Date	Unit	Amount	Method
+ 	Trade Comm	STD_FX	0.00	2024/11/26	
+%	1.00	Override
  	Trade Comm	STD	0.00	2024/11/26	
 %	100.00	Direct
 Add Row</textarea>
@@ -118,18 +121,6 @@ Add Row</textarea>
             return true;
         }
 
-        // 比較兩個日期，返回較晚的日期
-        function compareDates(date1, date2) {
-            if (!date1 && !date2) return null;
-            if (!date1) return date2;
-            if (!date2) return date1;
-            
-            const d1 = new Date(date1.replace(/\//g, '-'));
-            const d2 = new Date(date2.replace(/\//g, '-'));
-            
-            return d1 > d2 ? date1 : date2;
-        }
-
         // 檢查方法是否一致
         function isMethodMatch(methodA, methodB) {
             if (methodA === 'D' && methodB === 'Direct') return true;
@@ -144,6 +135,13 @@ Add Row</textarea>
                 return mapped; // 返回所有可能的映射值（如 ['STD', '*']）
             }
             return mapped || productName; // 默認返回原名稱
+        }
+
+        // 將方法代碼轉換為可讀名稱
+        function getMethodName(methodCode) {
+            if (methodCode === 'O') return 'Override';
+            if (methodCode === 'D') return 'Direct';
+            return methodCode;
         }
 
         function parseAndCheck() {
@@ -259,13 +257,12 @@ Add Row</textarea>
             dataA.forEach(rowA => {
                 const mappedProducts = getMappedProduct(rowA.product); // 可能返回数组（如 ['STD', '*']）
                 const productsToCheck = Array.isArray(mappedProducts) ? mappedProducts : [mappedProducts];
-                const overrideValue = rowA.method === 'O' ? 'Override' : 'Direct';
                 
                 // 找出所有匹配的记录（检查所有可能的映射值）
                 const allMatches = [];
                 productsToCheck.forEach(product => {
                     dataB.forEach(rowB => {
-                        if (rowB.selection === product && isMethodMatch(rowA.method, rowB.method)) {
+                        if (rowB.selection === product) {
                             allMatches.push(rowB);
                         }
                     });
@@ -295,7 +292,7 @@ Add Row</textarea>
                     status = '❌ RBO中沒有該產品(無0手數記錄)';
                     rowClass = 'not-found';
                 } else {
-                    // 有Min. Lot为0的有效记录，进行比较
+                    // 有Min. Lot为0的有效记录，检查方法是否匹配
                     const selectedMatch = zeroLotMatches[0];
                     valueB = selectedMatch.amount;
                     bSelection = selectedMatch.selection;
@@ -304,7 +301,11 @@ Add Row</textarea>
                     bEndDate = selectedMatch.endDate || '無限期';
                     bMethod = selectedMatch.method;
                     
-                    if (rowA.value2 <= valueB) {
+                    // 检查方法是否匹配
+                    if (!isMethodMatch(rowA.method, selectedMatch.method)) {
+                        status = '⚠️ 產品存在但方法不匹配';
+                        rowClass = 'method-mismatch';
+                    } else if (rowA.value2 <= valueB) {
                         status = '✅ 通過';
                         rowClass = 'pass';
                     } else {
@@ -323,7 +324,7 @@ Add Row</textarea>
                     <td>${valueB}</td>
                     <td>${bStartDate}</td>
                     <td>${bEndDate}</td>
-                    <td>${rowA.method === 'O' ? 'Override' : 'Direct'}</td>
+                    <td>${getMethodName(rowA.method)}</td>
                     <td>${bMethod}</td>
                     <td><strong>${status}</strong></td>
                 </tr>`;
@@ -337,7 +338,7 @@ Add Row</textarea>
             // 然後顯示解析後的數據
             debugHTML = '<div class="debug-info"><h3>解析後的A數據：</h3><table><tr><th>產品類型</th><th>產品</th><th>手數</th><th>數值</th><th>單位</th><th>方法</th></tr>';
             dataA.forEach(row => {
-                debugHTML += `<tr><td>${row.productType}</td><td>${row.product}</td><td>${row.value1}</td><td>${row.value2}</td><td>${row.unit}</td><td>${row.method === 'O' ? 'Override' : 'Direct'}</td></tr>`;
+                debugHTML += `<tr><td>${row.productType}</td><td>${row.product}</td><td>${row.value1}</td><td>${row.value2}</td><td>${row.unit}</td><td>${getMethodName(row.method)}</td></tr>`;
             });
             debugHTML += '</table></div>';
 
