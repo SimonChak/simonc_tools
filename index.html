@@ -35,9 +35,9 @@
 
 
 
-STD	Forex	0	1	USD	
-O
 STD	STD	0	100	%	
+D
+PRO	PRO	0	100	%	
 D
 Rows per page:
 
@@ -50,9 +50,9 @@ Rows per page:
             <textarea id="tableB" placeholder="請貼上RBO網頁的表格數據...">Details ( Active )
 ====================================================================================================================
  	Rebate Type	Selection	Min. Lot	Start Date	End Date	Unit	Amount	Method
- 	Trade Comm	STD_FX	0.00	2024/11/26	
-%	1.00	Override
  	Trade Comm	STD	0.00	2024/11/26	
+%	100.00	Direct
+ 	Trade Comm	PRO	0.00	2024/11/26	
 %	100.00	Direct
 Add Row</textarea>
         </div>
@@ -68,38 +68,40 @@ Add Row</textarea>
     </div>
 
     <script>
-        // 產品名稱映射表（已加入 STD=* 的映射）
+        // 產品名稱映射表（已加入 STD=* 和 PRO=* 的映射）
         const productMapping = {
-            'Forex': 'STD_FX',
-            '外匯': 'STD_FX',
-            'Gold': 'STD_GOLD',
-            '黃金': 'STD_GOLD',
-            'Silver': 'STD_SILVER',
-            '白銀': 'STD_SILVER',
-            'Oil': 'STD_OIL',
-            '原油': 'STD_OIL',
-            'GASUSD': 'STD_GAS',
-            '天然氣': 'STD_GAS',
-            'HKG33': 'STD_HKG33',
-            '恒生指數': 'STD_HKG33',
-            'NAS100': 'STD_NAS100',
-            '納斯達克100指數': 'STD_NAS100',
-            'SPX500': 'STD_SPX500',
-            '標普500指數': 'STD_SPX500',
-            'US30': 'STD_US30',
-            '道瓊斯指數': 'STD_US30',
-            'A50': 'STD_A50',
-            '中華A50指數': 'STD_A50',
-            'JPN225': 'STD_JPN225',
-            '日經225指數': 'STD_JPN225',
-            'GER30': 'STD_GER30',
-            '德國DAX指數': 'STD_GER30',
-            'GAUCNH': 'STD_GAUCNH',
-            '人民幣黃金': 'STD_GAUCNH',
-            'AUS200': 'STD_AUS200',
-            '澳洲200指數': 'STD_AUS200',
+            'Forex': ['STD_FX', 'PRO_FX'],
+            '外匯': ['STD_FX', 'PRO_FX'],
+            'Gold': ['STD_GOLD', 'PRO_GOLD'],
+            '黃金': ['STD_GOLD', 'PRO_GOLD'],
+            'Silver': ['STD_SILVER', 'PRO_SILVER'],
+            '白銀': ['STD_SILVER', 'PRO_SILVER'],
+            'Oil': ['STD_OIL', 'PRO_OIL'],
+            '原油': ['STD_OIL', 'PRO_OIL'],
+            'GASUSD': ['STD_GAS', 'PRO_GAS'],
+            '天然氣': ['STD_GAS', 'PRO_GAS'],
+            'HKG33': ['STD_HKG33', 'PRO_HKG33'],
+            '恒生指數': ['STD_HKG33', 'PRO_HKG33'],
+            'NAS100': ['STD_NAS100', 'PRO_NAS100'],
+            '納斯達克100指數': ['STD_NAS100', 'PRO_NAS100'],
+            'SPX500': ['STD_SPX500', 'PRO_SPX500'],
+            '標普500指數': ['STD_SPX500', 'PRO_SPX500'],
+            'US30': ['STD_US30', 'PRO_US30'],
+            '道瓊斯指數': ['STD_US30', 'PRO_US30'],
+            'A50': ['STD_A50', 'PRO_A50'],
+            '中華A50指數': ['STD_A50', 'PRO_A50'],
+            'JPN225': ['STD_JPN225', 'PRO_JPN225'],
+            '日經225指數': ['STD_JPN225', 'PRO_JPN225'],
+            'GER30': ['STD_GER30', 'PRO_GER30'],
+            '德國DAX指數': ['STD_GER30', 'PRO_GER30'],
+            'GAUCNH': ['STD_GAUCNH', 'PRO_GAUCNH'],
+            '人民幣黃金': ['STD_GAUCNH', 'PRO_GAUCNH'],
+            'AUS200': ['STD_AUS200', 'PRO_AUS200'],
+            '澳洲200指數': ['STD_AUS200', 'PRO_AUS200'],
             'STD': ['STD', '*'],  // 支持 STD 和 * 兩種映射
-            '標準': ['STD', '*']   // 支持 STD 和 * 兩種映射
+            'PRO': ['PRO', '*'],  // 支持 PRO 和 * 兩種映射
+            '標準': ['STD', '*'],   // 支持 STD 和 * 兩種映射
+            '專業': ['PRO', '*']    // 支持 PRO 和 * 兩種映射
         };
 
         // 檢查日期是否在有效範圍內（當前日期在開始日期和結束日期之間）
@@ -129,10 +131,30 @@ Add Row</textarea>
         }
 
         // 獲取映射後的產品名稱（支持多值映射）
-        function getMappedProduct(productName) {
+        function getMappedProduct(productType, productName) {
+            // 特殊情況處理：當產品類型與產品名稱相同時（STD STD 或 PRO PRO）
+            if (productType === productName) {
+                return [productType]; // 直接返回產品類型作為映射
+            }
+            
+            // 如果產品類型是PRO或STD，則組合產品名稱
+            if (productType === 'PRO' || productType === 'STD') {
+                const key = productName;
+                const mapped = productMapping[key];
+                if (Array.isArray(mapped)) {
+                    // 返回組合後的產品名稱，如 ['PRO_FX', 'PRO_*'] 或 ['STD_FX', 'STD_*']
+                    return mapped.map(item => {
+                        if (item === '*') return productType + '_*';
+                        return productType + '_' + item.replace('STD_', '').replace('PRO_', '');
+                    });
+                }
+                return productType + '_' + (mapped || productName); // 默認返回組合名稱
+            }
+            
+            // 如果不是PRO或STD類型，則按原邏輯處理
             const mapped = productMapping[productName];
             if (Array.isArray(mapped)) {
-                return mapped; // 返回所有可能的映射值（如 ['STD', '*']）
+                return mapped; // 返回所有可能的映射值
             }
             return mapped || productName; // 默認返回原名稱
         }
@@ -255,7 +277,8 @@ Add Row</textarea>
             resultHTML += '<table class="result-table"><tr><th>產品類型</th><th>產品</th><th>A手數</th><th>A數值</th><th>B Selection</th><th>B Min. Lot</th><th>B數值</th><th>B開始日期</th><th>B結束日期</th><th>A方法</th><th>B方法</th><th>狀態</th></tr>';
             
             dataA.forEach(rowA => {
-                const mappedProducts = getMappedProduct(rowA.product); // 可能返回数组（如 ['STD', '*']）
+                // 根據產品類型和產品名稱獲取所有可能的映射值
+                const mappedProducts = getMappedProduct(rowA.productType, rowA.product);
                 const productsToCheck = Array.isArray(mappedProducts) ? mappedProducts : [mappedProducts];
                 
                 // 找出所有匹配的记录（检查所有可能的映射值）
