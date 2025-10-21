@@ -28,21 +28,21 @@
     <div class="container">
         <div class="section">
             <h2>📋 Portal數據（貼上這裡）由Bonus...拉到底1–10 of 14</h2>
-            <textarea id="tableA" placeholder="請貼上Portal網頁的表格數據...">Bonus
+            <textarea id="tableA" placeholder="請貼上Portal網頁的表格數據...">獎金
 
 
 
 
 
 
-STD	STD	0	100	%	
-D
-PRO	PRO	0	100	%	
+STD	外匯	0	5	USD	
+O
+STD	標準	0	100	%	
 D
 Rows per page:
 
-10
-1–4 of 4</textarea>
+20
+1–14 of 14</textarea>
         </div>
 
         <div class="section">
@@ -50,11 +50,10 @@ Rows per page:
             <textarea id="tableB" placeholder="請貼上RBO網頁的表格數據...">Details ( Active )
 ====================================================================================================================
  	Rebate Type	Selection	Min. Lot	Start Date	End Date	Unit	Amount	Method
- 	Trade Comm	STD	0.00	2024/11/26	
+ 	Trade Comm	STD	0.00	2025/09/10	
 %	100.00	Direct
- 	Trade Comm	PRO	0.00	2024/11/26	
-%	100.00	Direct
-Add Row</textarea>
+ 	Trade Volume	STD_FX	0.00	2025/09/10	
+USD	5.00	Override</textarea>
         </div>
 
         <div class="section" style="grid-column: 1 / -1;">
@@ -68,56 +67,58 @@ Add Row</textarea>
     </div>
 
     <script>
-        // 產品名稱映射表（已加入 STD=* 和 PRO=* 的映射）
+        // 產品名稱映射表
         const productMapping = {
-            'Forex': ['STD_FX', 'PRO_FX'],
-            '外匯': ['STD_FX', 'PRO_FX'],
-            'Gold': ['STD_GOLD', 'PRO_GOLD'],
-            '黃金': ['STD_GOLD', 'PRO_GOLD'],
-            'Silver': ['STD_SILVER', 'PRO_SILVER'],
-            '白銀': ['STD_SILVER', 'PRO_SILVER'],
-            'Oil': ['STD_OIL', 'PRO_OIL'],
-            '原油': ['STD_OIL', 'PRO_OIL'],
-            'GASUSD': ['STD_GAS', 'PRO_GAS'],
-            '天然氣': ['STD_GAS', 'PRO_GAS'],
-            'HKG33': ['STD_HKG33', 'PRO_HKG33'],
-            '恒生指數': ['STD_HKG33', 'PRO_HKG33'],
-            'NAS100': ['STD_NAS100', 'PRO_NAS100'],
-            '納斯達克100指數': ['STD_NAS100', 'PRO_NAS100'],
-            'SPX500': ['STD_SPX500', 'PRO_SPX500'],
-            '標普500指數': ['STD_SPX500', 'PRO_SPX500'],
-            'US30': ['STD_US30', 'PRO_US30'],
-            '道瓊斯指數': ['STD_US30', 'PRO_US30'],
-            'A50': ['STD_A50', 'PRO_A50'],
-            '中華A50指數': ['STD_A50', 'PRO_A50'],
-            'JPN225': ['STD_JPN225', 'PRO_JPN225'],
-            '日經225指數': ['STD_JPN225', 'PRO_JPN225'],
-            'GER30': ['STD_GER30', 'PRO_GER30'],
-            '德國DAX指數': ['STD_GER30', 'PRO_GER30'],
-            'GAUCNH': ['STD_GAUCNH', 'PRO_GAUCNH'],
-            '人民幣黃金': ['STD_GAUCNH', 'PRO_GAUCNH'],
-            'AUS200': ['STD_AUS200', 'PRO_AUS200'],
-            '澳洲200指數': ['STD_AUS200', 'PRO_AUS200'],
-            'STD': ['STD', '*'],  // 支持 STD 和 * 兩種映射
-            'PRO': ['PRO', '*'],  // 支持 PRO 和 * 兩種映射
-            '標準': ['STD', '*'],   // 支持 STD 和 * 兩種映射
-            '專業': ['PRO', '*']    // 支持 PRO 和 * 兩種映射
+            'Forex': ['FX'],
+            '外匯': ['FX'],
+            'Gold': ['GOLD'],
+            '黃金': ['GOLD'],
+            'Silver': ['SILVER'],
+            '白銀': ['SILVER'],
+            'Oil': ['OIL'],
+            '原油': ['OIL'],
+            'GASUSD': ['GAS'],
+            '天然氣': ['GAS'],
+            'HKG33': ['HKG33'],
+            '恒生指數': ['HKG33'],
+            'NAS100': ['NAS100'],
+            '納斯達克100指數': ['NAS100'],
+            'SPX500': ['SPX500'],
+            '標普500指數': ['SPX500'],
+            'US30': ['US30'],
+            '道瓊斯指數': ['US30'],
+            'A50': ['A50'],
+            '中華A50指數': ['A50'],
+            'JPN225': ['JPN225'],
+            '日經225指數': ['JPN225'],
+            'GER30': ['GER30'],
+            '德國DAX指數': ['GER30'],
+            'GAUCNH': ['GAUCNH'],
+            '人民幣黃金': ['GAUCNH'],
+            'AUS200': ['AUS200'],
+            '澳洲200指數': ['AUS200']
         };
 
-        // 檢查日期是否在有效範圍內（當前日期在開始日期和結束日期之間）
+        // 特殊產品類型映射（STD/PRO 和 標準/專業）
+        const productTypeMapping = {
+            'STD': ['STD', ''],
+            'PRO': ['PRO', ''],
+            '標準': ['STD', ''],
+            '專業': ['PRO', '']
+        };
+
+        // 檢查日期是否在有效範圍內
         function isDateValid(startDate, endDate) {
             const today = new Date();
             
-            // 處理開始日期
             if (startDate && startDate.trim() !== '') {
                 const start = new Date(startDate.replace(/\//g, '-'));
-                if (start > today) return false; // 開始日期在未來
+                if (start > today) return false;
             }
             
-            // 處理結束日期
             if (endDate && endDate.trim() !== '') {
                 const end = new Date(endDate.replace(/\//g, '-'));
-                if (end < today) return false; // 結束日期在過去
+                if (end < today) return false;
             }
             
             return true;
@@ -130,33 +131,39 @@ Add Row</textarea>
             return false;
         }
 
-        // 獲取映射後的產品名稱（支持多值映射）
+        // 獲取映射後的產品名稱
         function getMappedProduct(productType, productName) {
-            // 特殊情況處理：當產品類型與產品名稱相同時（STD STD 或 PRO PRO）
-            if (productType === productName) {
-                return [productType]; // 直接返回產品類型作為映射
+            console.log('Mapping product:', productType, productName);
+            
+            // 特殊處理：當產品名稱是"STD"、"PRO"、"標準"或"專業"時
+            if (productName === 'STD' || productName === 'PRO' || productName === '標準' || productName === '專業') {
+                const mappedTypes = productTypeMapping[productName] || [productName];
+                console.log('Special product mapping:', mappedTypes);
+                
+                const results = [];
+                mappedTypes.forEach(type => {
+                    if (type === '') {
+                        // 空字符串表示直接使用產品類型
+                        results.push(productType);
+                    } else {
+                        results.push(type);
+                    }
+                });
+                console.log('Special product results:', results);
+                return results;
             }
             
-            // 如果產品類型是PRO或STD，則組合產品名稱
-            if (productType === 'PRO' || productType === 'STD') {
-                const key = productName;
-                const mapped = productMapping[key];
-                if (Array.isArray(mapped)) {
-                    // 返回組合後的產品名稱，如 ['PRO_FX', 'PRO_*'] 或 ['STD_FX', 'STD_*']
-                    return mapped.map(item => {
-                        if (item === '*') return productType + '_*';
-                        return productType + '_' + item.replace('STD_', '').replace('PRO_', '');
-                    });
-                }
-                return productType + '_' + (mapped || productName); // 默認返回組合名稱
-            }
-            
-            // 如果不是PRO或STD類型，則按原邏輯處理
+            // 普通產品處理
             const mapped = productMapping[productName];
             if (Array.isArray(mapped)) {
-                return mapped; // 返回所有可能的映射值
+                const results = mapped.map(item => productType + '_' + item);
+                console.log('Normal product mapping results:', results);
+                return results;
             }
-            return mapped || productName; // 默認返回原名稱
+            
+            const result = [productType + '_' + (mapped || productName)];
+            console.log('Fallback product mapping result:', result);
+            return result;
         }
 
         // 將方法代碼轉換為可讀名稱
@@ -173,9 +180,8 @@ Add Row</textarea>
             let debugHTML = '';
             let resultHTML = '';
             
-            // 解析Portal網頁數據（新格式）
+            // 解析Portal網頁數據
             const linesA = tableA.trim().split('\n');
-            
             const dataA = [];
             let skipNext = false;
             
@@ -187,35 +193,31 @@ Add Row</textarea>
                 
                 const values = linesA[i].split('\t');
                 
-                // 跳過開頭的空白行和標題行
-                if (i < 6 || values[0] === 'Bonus' || values[0] === 'Rows per page:' || values[0] === '' || values[0].match(/^\d+–\d+ of \d+$/)) {
+                if (i < 6 || values[0] === '獎金' || values[0] === 'Rows per page:' || values[0] === '' || values[0].match(/^\d+–\d+ of \d+$/)) {
                     continue;
                 }
                 
-                // 檢查是否是數據行（包含數值）
                 if (values.length >= 5 && !isNaN(values[3])) {
                     const nextLineValues = i + 1 < linesA.length ? linesA[i + 1].split('\t') : [];
                     const method = nextLineValues[0] || '';
                     
                     if (method === 'O' || method === 'D') {
                         dataA.push({
-                            productType: values[0], // 新增的產品類型字段
-                            product: values[1],     // 產品名稱
+                            productType: values[0],
+                            product: values[1],
                             value1: parseInt(values[2]),
                             value2: parseFloat(values[3]),
                             unit: values[4],
                             method: method
                         });
-                        skipNext = true; // 跳過下一行（方法行）
+                        skipNext = true;
                     }
                 }
             }
             
-            // 解析RBO網頁數據（交錯格式）
+            // 解析RBO網頁數據
             const linesB = tableB.trim().split('\n');
-
             const dataB = [];
-            let headersB = [];
             skipNext = false;
 
             for (let i = 0; i < linesB.length; i++) {
@@ -226,20 +228,12 @@ Add Row</textarea>
                 
                 const values = linesB[i].split('\t');
                 
-                // 忽略前兩行
                 if (i < 2) continue;
                 
-                // 第三行是表頭
-                if (i === 2) {
-                    headersB = values;
-                    continue;
-                }
+                if (i === 2) continue; // 跳過表頭
                 
-                // 檢查是否是數據行
                 if (values.length >= 3 && values[1] && (values[1].includes('Trade Comm') || values[1].includes('Trade Volume'))) {
-                    // 檢查是否是完整的一行數據（有Amount列）
                     if (values.length >= 8 && values[7]) {
-                        // 完整的一行數據
                         dataB.push({
                             rebateType: values[1],
                             selection: values[2],
@@ -251,7 +245,6 @@ Add Row</textarea>
                             method: values[8]
                         });
                     } else {
-                        // 分兩行的數據，下一行是unit, amount, method
                         if (i + 1 < linesB.length) {
                             const nextValues = linesB[i + 1].split('\t');
                             if (nextValues.length >= 3) {
@@ -260,12 +253,12 @@ Add Row</textarea>
                                     selection: values[2],
                                     minLot: parseFloat(values[3]),
                                     startDate: values[4],
-                                    endDate: values[5] || '', // 可能為空
+                                    endDate: values[5] || '',
                                     unit: nextValues[0],
                                     amount: parseFloat(nextValues[1]),
                                     method: nextValues[2]
                                 });
-                                skipNext = true; // 跳過下一行
+                                skipNext = true;
                             }
                         }
                     }
@@ -277,25 +270,7 @@ Add Row</textarea>
             resultHTML += '<table class="result-table"><tr><th>產品類型</th><th>產品</th><th>A手數</th><th>A數值</th><th>B Selection</th><th>B Min. Lot</th><th>B數值</th><th>B開始日期</th><th>B結束日期</th><th>A方法</th><th>B方法</th><th>狀態</th></tr>';
             
             dataA.forEach(rowA => {
-                // 根據產品類型和產品名稱獲取所有可能的映射值
                 const mappedProducts = getMappedProduct(rowA.productType, rowA.product);
-                const productsToCheck = Array.isArray(mappedProducts) ? mappedProducts : [mappedProducts];
-                
-                // 找出所有匹配的记录（检查所有可能的映射值）
-                const allMatches = [];
-                productsToCheck.forEach(product => {
-                    dataB.forEach(rowB => {
-                        if (rowB.selection === product) {
-                            allMatches.push(rowB);
-                        }
-                    });
-                });
-                
-                // 优先选择Min. Lot为0的有效记录
-                const zeroLotMatches = allMatches.filter(rowB => 
-                    rowB.minLot === 0 && 
-                    isDateValid(rowB.startDate, rowB.endDate)
-                );
                 
                 let status = '';
                 let valueB = 'N/A';
@@ -306,16 +281,33 @@ Add Row</textarea>
                 let bMethod = 'N/A';
                 let rowClass = 'not-found';
                 
+                console.log('Checking product:', rowA.product, 'Mapped to:', mappedProducts);
+                
+                // 找出所有匹配的记录
+                const allMatches = [];
+                mappedProducts.forEach(product => {
+                    dataB.forEach(rowB => {
+                        if (rowB.selection === product) {
+                            allMatches.push(rowB);
+                        }
+                    });
+                });
+                
+                console.log('Found matches:', allMatches);
+                
+                // 优先选择Min. Lot为0的有效记录
+                const zeroLotMatches = allMatches.filter(rowB => 
+                    rowB.minLot === 0 && 
+                    isDateValid(rowB.startDate, rowB.endDate)
+                );
+                
                 if (allMatches.length === 0) {
-                    // 完全没有该产品的记录
                     status = '❌ RBO中沒有該產品';
                     rowClass = 'not-found';
                 } else if (zeroLotMatches.length === 0) {
-                    // 没有Min. Lot为0的有效记录
                     status = '❌ RBO中沒有該產品(無0手數記錄)';
                     rowClass = 'not-found';
                 } else {
-                    // 有Min. Lot为0的有效记录，检查方法是否匹配
                     const selectedMatch = zeroLotMatches[0];
                     valueB = selectedMatch.amount;
                     bSelection = selectedMatch.selection;
@@ -324,11 +316,13 @@ Add Row</textarea>
                     bEndDate = selectedMatch.endDate || '無限期';
                     bMethod = selectedMatch.method;
                     
-                    // 检查方法是否匹配
                     if (!isMethodMatch(rowA.method, selectedMatch.method)) {
                         status = '⚠️ 產品存在但方法不匹配';
                         rowClass = 'method-mismatch';
-                    } else if (rowA.value2 <= valueB) {
+                    } else if (rowA.unit === '%' && rowA.value2 <= valueB) {
+                        status = '✅ 通過';
+                        rowClass = 'pass';
+                    } else if (rowA.unit !== '%' && rowA.value2 <= valueB) {
                         status = '✅ 通過';
                         rowClass = 'pass';
                     } else {
@@ -354,11 +348,9 @@ Add Row</textarea>
             });
             
             resultHTML += '</table></div>';
-            
-            // 將最終結果放在最前面
             document.getElementById('finalResult').innerHTML = resultHTML;
 
-            // 然後顯示解析後的數據
+            // 顯示解析後的數據
             debugHTML = '<div class="debug-info"><h3>解析後的A數據：</h3><table><tr><th>產品類型</th><th>產品</th><th>手數</th><th>數值</th><th>單位</th><th>方法</th></tr>';
             dataA.forEach(row => {
                 debugHTML += `<tr><td>${row.productType}</td><td>${row.product}</td><td>${row.value1}</td><td>${row.value2}</td><td>${row.unit}</td><td>${getMethodName(row.method)}</td></tr>`;
