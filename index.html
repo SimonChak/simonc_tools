@@ -19,6 +19,9 @@
         .fail { background: #f8d7da; }
         .not-found { background: #fff3cd; }
         .method-mismatch { background: #ffeaa7; }
+        .step-check { background: #e7f3ff; }
+        .step-pass { background: #d1e7dd; }
+        .step-fail { background: #f8d7da; }
         .hidden { display: none; }
     </style>
 </head>
@@ -39,6 +42,10 @@ STD	外匯	0	5	USD
 O
 STD	標準	0	100	%	
 D
+STD	A50	0	0.05	USD	
+O
+STD	天然氣	0	0.5	USD	
+O
 Rows per page:
 
 20
@@ -53,7 +60,11 @@ Rows per page:
  	Trade Comm	STD	0.00	2025/09/10	
 %	100.00	Direct
  	Trade Volume	STD_FX	0.00	2025/09/10	
-USD	5.00	Override</textarea>
+USD	5.00	Override
+ 	Trade Volume	STD_A50	0.00	2025/09/10	
+USD	0.05	Override
+ 	Trade Volume	STD_GAS	0.00	2025/09/10	
+USD	0.5	Override</textarea>
         </div>
 
         <div class="section" style="grid-column: 1 / -1;">
@@ -61,6 +72,7 @@ USD	5.00	Override</textarea>
             <button onclick="parseAndCheck()">開始解析與核對</button>
             <button onclick="clearAll()">清空所有</button>
             
+            <div id="stepCheckResult"></div>
             <div id="finalResult"></div>
             <div id="debugResult"></div>
         </div>
@@ -106,6 +118,33 @@ USD	5.00	Override</textarea>
             '標準': ['STD', ''],
             '專業': ['PRO', '']
         };
+
+        // 特殊產品增量檢查規則
+        const stepRules = {
+            'A50': 0.05,  // A50必須是0.05的倍數
+            '中華A50指數': 0.05,
+            'GASUSD': 0.5,  // GASUSD必須是0.5的倍數
+            '天然氣': 0.5
+        };
+
+        // 檢查增量規則
+        function checkStepRule(productName, value) {
+            const step = stepRules[productName];
+            if (!step) return null; // 沒有規則，返回null
+            
+            const remainder = (value * 100) % (step * 100); // 避免浮點數誤差
+            const isValid = Math.abs(remainder) < 0.0001 || Math.abs(remainder - step * 100) < 0.0001;
+            
+            return {
+                productName: productName,
+                value: value,
+                step: step,
+                valid: isValid,
+                reason: isValid ? 
+                    `✅ 符合${step}增量規則` : 
+                    `❌ 不符合${step}增量規則（必須是${step}的倍數）`
+            };
+        }
 
         // 檢查日期是否在有效範圍內
         function isDateValid(startDate, endDate) {
@@ -177,6 +216,7 @@ USD	5.00	Override</textarea>
             const tableA = document.getElementById('tableA').value;
             const tableB = document.getElementById('tableB').value;
             
+            let stepHTML = '';
             let debugHTML = '';
             let resultHTML = '';
             
@@ -214,6 +254,49 @@ USD	5.00	Override</textarea>
                     }
                 }
             }
+            
+            // 先執行增量規則檢查（只檢查有規則的產品）
+            const stepCheckResults = [];
+            dataA.forEach(rowA => {
+                const stepCheck = checkStepRule(rowA.product, rowA.value2);
+                if (stepCheck) {
+                    stepCheckResults.push({
+                        productType: rowA.productType,
+                        product: rowA.product,
+                        value: rowA.value2,
+                        unit: rowA.unit,
+                        step: stepCheck.step,
+                        valid: stepCheck.valid,
+                        reason: stepCheck.reason
+                    });
+                }
+            });
+            
+            // 如果有需要檢查的產品，顯示增量檢查結果
+            if (stepCheckResults.length > 0) {
+                stepHTML += '<div class="step-check"><h3>🔧 增量規則檢查（僅顯示需檢查的產品）：</h3>';
+                stepHTML += '<table><tr><th>產品類型</th><th>產品</th><th>數值</th><th>單位</th><th>增量要求</th><th>檢查結果</th><th>說明</th></tr>';
+                
+                stepCheckResults.forEach(result => {
+                    const rowClass = result.valid ? 'step-pass' : 'step-fail';
+                    
+                    stepHTML += `<tr class="${rowClass}">
+                        <td>${result.productType}</td>
+                        <td>${result.product}</td>
+                        <td>${result.value}</td>
+                        <td>${result.unit}</td>
+                        <td>${result.step}的倍數</td>
+                        <td><strong>${result.valid ? '✅ 通過' : '❌ 不通過'}</strong></td>
+                        <td>${result.reason}</td>
+                    </tr>`;
+                });
+                
+                stepHTML += '</table></div>';
+            } else {
+                stepHTML = '<div class="step-check"><h3>🔧 增量規則檢查：</h3><p>無需進行增量規則檢查的產品</p></div>';
+            }
+            
+            document.getElementById('stepCheckResult').innerHTML = stepHTML;
             
             // 解析RBO網頁數據
             const linesB = tableB.trim().split('\n');
@@ -378,6 +461,7 @@ USD	5.00	Override</textarea>
         function clearAll() {
             document.getElementById('tableA').value = '';
             document.getElementById('tableB').value = '';
+            document.getElementById('stepCheckResult').innerHTML = '';
             document.getElementById('debugResult').innerHTML = '';
             document.getElementById('finalResult').innerHTML = '';
         }
