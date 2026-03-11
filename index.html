@@ -26,7 +26,7 @@
     </style>
 </head>
 <body>
-    <h1>🔍 普通IB Bonus檢查工具(ECN除外)</h1>
+    <h1>🔍 普通IB Bonus檢查工具</h1>
     
     <div class="container">
         <div class="section">
@@ -185,6 +185,12 @@ USD	0.5	Override</textarea>
         // 獲取映射後的產品名稱
         function getMappedProduct(productType, productName) {
             console.log('Mapping product:', productType, productName);
+            
+            // 特殊處理：只有當產品類型是"ECN"且產品名稱也是"ECN"時，才直接返回"ECN"
+            if (productType === 'ECN' && productName === 'ECN') {
+                console.log('Special ECN product mapping: ECN (both productType and productName are ECN)');
+                return ['ECN'];  // 直接返回ECN，不添加前綴
+            }
             
             // 特殊處理：當產品名稱是"STD"、"PRO"、"標準"或"專業"時
             if (productName === 'STD' || productName === 'PRO' || productName === '標準' || productName === '專業') {
