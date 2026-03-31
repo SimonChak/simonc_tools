@@ -336,68 +336,10 @@ USD	0.5	Override</textarea>
                     duplicateHTML += '</table>';
                 });
                 
-                // 顯示不同手數的相同產品（僅供參考）
-                const allProductGroups = {};
-                dataA.forEach(item => {
-                    const productKey = `${item.productType}-${item.product}`; // 只包含產品，不含手數
-                    if (!allProductGroups[productKey]) {
-                        allProductGroups[productKey] = [];
-                    }
-                    allProductGroups[productKey].push(item);
-                });
-                
-                const differentLotProducts = [];
-                Object.keys(allProductGroups).forEach(key => {
-                    const items = allProductGroups[key];
-                    if (items.length > 1) {
-                        // 檢查是否有不同的手數
-                        const lotSizes = [...new Set(items.map(item => item.value1))];
-                        if (lotSizes.length > 1) {
-                            differentLotProducts.push({
-                                productKey: key,
-                                items: items,
-                                lotSizes: lotSizes
-                            });
-                        }
-                    }
-                });
-                
-                if (differentLotProducts.length > 0) {
-                    duplicateHTML += '<h4>其他相同產品的配置（僅供參考）：</h4>';
-                    duplicateHTML += '<p style="font-size: 0.9em; color: #666;">以下產品有相同產品但手數不同，這些是允許的：</p>';
-                    
-                    differentLotProducts.forEach(product => {
-                        const productType = product.items[0].productType;
-                        const productName = product.items[0].product;
-                        
-                        duplicateHTML += `<h5>${productType} - ${productName} (${product.lotSizes.length}種不同手數)</h5>`;
-                        duplicateHTML += '<table style="font-size: 0.9em;"><tr><th>手數</th><th>數值</th><th>單位</th><th>方法</th></tr>';
-                        
-                        product.items.forEach(item => {
-                            duplicateHTML += `<tr>
-                                <td>${item.value1}</td>
-                                <td>${item.value2}</td>
-                                <td>${item.unit}</td>
-                                <td>${getMethodName(item.method)}</td>
-                            </tr>`;
-                        });
-                        
-                        duplicateHTML += '</table>';
-                    });
-                }
-                
-                duplicateHTML += '<p style="color: #721c24; font-weight: bold; margin-top: 10px;">❌ 請刪除重複的產品配置後再進行檢查！</p>';
+                duplicateHTML += '<p style="color: #721c24; font-weight: bold; margin-top: 10px;">⚠️ 注意：發現重複配置，建議修正後重新檢查！</p>';
                 duplicateHTML += '</div>';
                 
                 document.getElementById('duplicateWarning').innerHTML = duplicateHTML;
-            }
-            
-            // 如果有重複項目，停止繼續檢查
-            if (Object.keys(duplicateGroups).length > 0) {
-                document.getElementById('stepCheckResult').innerHTML = '<div class="step-check"><h3>⏸️ 檢查暫停</h3><p>由於發現重複配置，請先修正Portal數據。</p></div>';
-                document.getElementById('finalResult').innerHTML = '';
-                document.getElementById('debugResult').innerHTML = '';
-                return;
             }
             
             // 先執行增量規則檢查（只檢查有規則的產品）
