@@ -1,18 +1,27 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>開IB檢查小工具</title>
+    <title>整合版 IB Bonus 檢查工具 (支援模式切換)</title>
     <meta charset="UTF-8">
     <style>
         body { font-family: Arial; margin: 20px; background: #f0f8ff; }
         .container { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; max-width: 1600px; margin: 0 auto; }
         .section { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
         textarea { width: 100%; height: 300px; padding: 10px; border: 2px solid #007bff; border-radius: 5px; font-family: monospace; }
-        button { background: #007bff; color: white; padding: 12px 20px; border: none; border-radius: 5px; cursor: pointer; margin: 10px 5px; }
+        
+        /* 控制列樣式 */
+        .control-panel { background: #e2e3e5; padding: 15px; border-radius: 8px; margin-bottom: 15px; display: flex; align-items: center; gap: 15px; }
+        .mode-select { padding: 8px 12px; font-size: 1rem; border-radius: 5px; border: 2px solid #007bff; font-weight: bold; background: white; cursor: pointer; }
+        
+        button { background: #007bff; color: white; padding: 12px 20px; border: none; border-radius: 5px; cursor: pointer; margin: 5px; font-weight: bold; }
         button:hover { background: #0056b3; }
+        .btn-clear { background: #6c757d; }
+        .btn-clear:hover { background: #5a6268; }
+        
         table { width: 100%; border-collapse: collapse; margin-top: 15px; }
         th, td { border: 2px solid #ddd; padding: 10px; text-align: center; }
         th { background: #e9ecef; font-weight: bold; }
+        
         .debug-info { background: #fff3cd; padding: 15px; border-radius: 5px; margin: 10px 0; }
         .result-table { background: #f8f9fa; }
         .pass { background: #d4edda; }
@@ -22,12 +31,15 @@
         .step-check { background: #e7f3ff; }
         .step-pass { background: #d1e7dd; }
         .step-fail { background: #f8d7da; }
-        .duplicate-warning { background: #f8d7da; border: 2px solid #dc3545; }
-        .hidden { display: none; }
+        .duplicate-warning { background: #f8d7da; border: 2px solid #dc3545; padding: 15px; border-radius: 5px; margin-bottom: 15px; }
+        
+        /* 動態隱藏日期欄位用 */
+        .date-col { display: table-cell; }
+        .mode-strict .date-col { display: none; }
     </style>
 </head>
 <body>
-    <h1>🔍 普通IB Bonus檢查工具</h1>
+    <h1>🔍 整合版 IB Bonus 檢查工具</h1>
     
     <div class="container">
         <div class="section">
@@ -61,7 +73,7 @@ Rows per page:
 
         <div class="section">
             <h2>📋 RBO數據（貼上這裡）由Details ( Active ) ...拉到底Override</h2>
-<textarea id="tableB" placeholder="請貼上RBO網頁的表格數據...">Details ( Active )
+            <textarea id="tableB" placeholder="請貼上RBO網頁的表格數據...">Details ( Active )
 ====================================================================================================================
  	Rebate Type	Selection	Min. Lot	Start Date	End Date	Unit	Amount	Method
  	Trade Comm	STD	0.00	2025/09/10	
@@ -80,8 +92,16 @@ USD	0.5	Override</textarea>
 
         <div class="section" style="grid-column: 1 / -1;">
             <h2>📊 解析與核對結果</h2>
-            <button onclick="parseAndCheck()">開始解析與核對</button>
-            <button onclick="clearAll()">清空所有</button>
+            
+            <div class="control-panel">
+                <label for="checkMode"><strong>🛠️ 選擇核對模式：</strong></label>
+                <select id="checkMode" class="mode-select" onchange="parseAndCheck()">
+                    <option value="standard">📉 標準模式 (檢查 A <= B，顯示日期欄位)</option>
+                    <option value="strict" selected>⚖️ 嚴格雙向完全相等模式 (檢查 A == B，啟動 B有A冇 檢查)</option>
+                </select>
+                <button onclick="parseAndCheck()">開始解析與核對</button>
+                <button onclick="clearAll()" class="btn-clear">清空所有</button>
+            </div>
             
             <div id="duplicateWarning"></div>
             <div id="stepCheckResult"></div>
@@ -93,204 +113,133 @@ USD	0.5	Override</textarea>
     <script>
         // 產品名稱映射表
         const productMapping = {
-            'Forex': ['FX'],
-            '外匯': ['FX'],
-            'Gold': ['GOLD'],
-            '黃金': ['GOLD'],
-            'Silver': ['SILVER'],
-            '白銀': ['SILVER'],
-            'Oil': ['OIL'],
-            '原油': ['OIL'],
-            'GASUSD': ['GAS'],
-            '天然氣': ['GAS'],
-            'HK50': ['HK50'],
-            '恒生指數': ['HK50'],
-            'NAS100': ['NAS100'],
-            '納斯達克100指數': ['NAS100'],
-            'SPX500': ['SPX500'],
-            '標普500指數': ['SPX500'],
-            'US30': ['US30'],
-            '道瓊斯指數': ['US30'],
-            'A50': ['A50'],
-            '中華A50指數': ['A50'],
-            'JPN225': ['JPN225'],
-            '日經225指數': ['JPN225'],
-            'GER30': ['GER30'],
-            '德國DAX指數': ['GER30'],
-            'GAUCNH': ['GAUCNH'],
-            '人民幣黃金': ['GAUCNH'],
-            'AUS200': ['AUS200'],
-            '澳洲200指數': ['AUS200'],
-            'BTCUSD': ['BTC'],  // 修正：對應RBO中的BTC
-            '比特幣美元': ['BTC'],
-            'ETHUSD': ['ETH'],  // 修正：對應RBO中的ETH
-            '以太幣美元': ['ETH']
+            'Forex': ['FX'], '外匯': ['FX'],
+            'Gold': ['GOLD'], '黃金': ['GOLD'],
+            'Silver': ['SILVER'], '白銀': ['SILVER'],
+            'Oil': ['OIL'], '原油': ['OIL'],
+            'GASUSD': ['GAS'], '天然氣': ['GAS'],
+            'HK50': ['HK50'], '恒生指數': ['HK50'],
+            'NAS100': ['NAS100'], '納斯達克100指數': ['NAS100'],
+            'SPX500': ['SPX500'], '標普500指數': ['SPX500'],
+            'US30': ['US30'], '道瓊斯指數': ['US30'],
+            'A50': ['A50'], '中華A50指數': ['A50'],
+            'JPN225': ['JPN225'], '日經225指數': ['JPN225'],
+            'GER30': ['GER30'], '德國DAX指數': ['GER30'],
+            'GAUCNH': ['GAUCNH'], '人民幣黃金': ['GAUCNH'],
+            'AUS200': ['AUS200'], '澳洲200指數': ['AUS200'],
+            'BTCUSD': ['BTC'], '比特幣美元': ['BTC'],
+            'ETHUSD': ['ETH'], '以太幣美元': ['ETH']
         };
 
-        // 特殊產品類型映射（STD/PRO 和 標準/專業）
         const productTypeMapping = {
-            'STD': ['STD', ''],
-            'PRO': ['PRO', ''],
-            '標準': ['STD', ''],
-            '專業': ['PRO', '']
+            'STD': ['STD', ''], 'PRO': ['PRO', ''],
+            '標準': ['STD', ''], '專業': ['PRO', '']
         };
 
-        // 特殊產品增量檢查規則
         const stepRules = {
-            'A50': 0.05,  // A50必須是0.05的倍數
-            '中華A50指數': 0.05,
-            'GASUSD': 0.5,  // GASUSD必須是0.5的倍數
-            '天然氣': 0.5
+            'A50': 0.05, '中華A50指數': 0.05,
+            'GASUSD': 0.5, '天然氣': 0.5
         };
 
-        // 檢查增量規則
         function checkStepRule(productName, value) {
             const step = stepRules[productName];
-            if (!step) return null; // 沒有規則，返回null
-            
-            const remainder = (value * 100) % (step * 100); // 避免浮點數誤差
+            if (!step) return null;
+            const remainder = (value * 100) % (step * 100);
             const isValid = Math.abs(remainder) < 0.0001 || Math.abs(remainder - step * 100) < 0.0001;
-            
             return {
-                productName: productName,
-                value: value,
-                step: step,
-                valid: isValid,
-                reason: isValid ? 
-                    `✅ 符合${step}增量規則` : 
-                    `❌ 不符合${step}增量規則（必須是${step}的倍數）`
+                productName: productName, value: value, step: step, valid: isValid,
+                reason: isValid ? `✅ 符合${step}增量規則` : `❌ 不符合${step}增量規則（必須是${step}的倍數）`
             };
         }
 
-        // 檢查日期是否在有效範圍內
         function isDateValid(startDate, endDate) {
             const today = new Date();
-            
             if (startDate && startDate.trim() !== '') {
                 const start = new Date(startDate.replace(/\//g, '-'));
                 if (start > today) return false;
             }
-            
             if (endDate && endDate.trim() !== '') {
                 const end = new Date(endDate.replace(/\//g, '-'));
                 if (end < today) return false;
             }
-            
             return true;
         }
 
-        // 檢查方法是否一致
         function isMethodMatch(methodA, methodB) {
             if (methodA === 'D' && methodB === 'Direct') return true;
             if (methodA === 'O' && methodB === 'Override') return true;
             return false;
         }
 
-        // 獲取映射後的產品名稱
         function getMappedProduct(productType, productName) {
-            console.log('Mapping product:', productType, productName);
-            
-            // 特殊處理：只有當產品類型是"ECN"且產品名稱也是"ECN"時，才直接返回"ECN"
-            if (productType === 'ECN' && productName === 'ECN') {
-                console.log('Special ECN product mapping: ECN (both productType and productName are ECN)');
-                return ['ECN'];  // 直接返回ECN，不添加前綴
-            }
-            
-            // 特殊處理：當產品名稱是"STD"、"PRO"、"標準"或"專業"時
+            if (productType === 'ECN' && productName === 'ECN') return ['ECN'];
             if (productName === 'STD' || productName === 'PRO' || productName === '標準' || productName === '專業') {
                 const mappedTypes = productTypeMapping[productName] || [productName];
-                console.log('Special product mapping:', mappedTypes);
-                
                 const results = [];
                 mappedTypes.forEach(type => {
-                    if (type === '') {
-                        // 空字符串表示直接使用產品類型
-                        results.push(productType);
-                    } else {
-                        results.push(type);
-                    }
+                    if (type === '') results.push(productType);
+                    else results.push(type);
                 });
-                console.log('Special product results:', results);
                 return results;
             }
-            
-            // 普通產品處理
             const mapped = productMapping[productName];
-            if (Array.isArray(mapped)) {
-                const results = mapped.map(item => productType + '_' + item);
-                console.log('Normal product mapping results:', results);
-                return results;
-            }
-            
-            const result = [productType + '_' + (mapped || productName)];
-            console.log('Fallback product mapping result:', result);
-            return result;
+            if (Array.isArray(mapped)) return mapped.map(item => productType + '_' + item);
+            return [productType + '_' + (mapped || productName)];
         }
 
-        // 將方法代碼轉換為可讀名稱
         function getMethodName(methodCode) {
             if (methodCode === 'O') return 'Override';
             if (methodCode === 'D') return 'Direct';
             return methodCode;
         }
 
-        // 檢查重複項目（檢查相同產品和相同手數的配置）
         function getDuplicateDetails(dataA) {
-            // 按產品和手數分組
             const productGroups = {};
-            
             dataA.forEach(item => {
-                const productKey = `${item.productType}-${item.product}-${item.value1}`; // 包含手數
-                if (!productGroups[productKey]) {
-                    productGroups[productKey] = [];
-                }
+                const productKey = `${item.productType}-${item.product}-${item.value1}`;
+                if (!productGroups[productKey]) productGroups[productKey] = [];
                 productGroups[productKey].push(item);
             });
-            
-            // 只返回有重複的組（數量>1）
             const duplicateGroups = {};
             Object.keys(productGroups).forEach(key => {
-                if (productGroups[key].length > 1) {
-                    duplicateGroups[key] = productGroups[key];
-                }
+                if (productGroups[key].length > 1) duplicateGroups[key] = productGroups[key];
             });
-            
             return duplicateGroups;
         }
 
         function parseAndCheck() {
             const tableA = document.getElementById('tableA').value;
             const tableB = document.getElementById('tableB').value;
+            const currentMode = document.getElementById('checkMode').value; // 獲取當前選擇模式
             
+            // 根據模式對最外層容器動態加上 class，方便 CSS 控制日期欄位隱含
+            if (currentMode === 'strict') {
+                document.body.classList.add('mode-strict');
+            } else {
+                document.body.classList.remove('mode-strict');
+            }
+
             let duplicateHTML = '';
             let stepHTML = '';
             let debugHTML = '';
             let resultHTML = '';
             
-            // 清空之前的警告
             document.getElementById('duplicateWarning').innerHTML = '';
             
-            // 解析Portal網頁數據
+            // 1. 解析 Portal 數據 (Table A)
             const linesA = tableA.trim().split('\n');
             const dataA = [];
             let skipNext = false;
             
             for (let i = 0; i < linesA.length; i++) {
-                if (skipNext) {
-                    skipNext = false;
-                    continue;
-                }
-                
+                if (skipNext) { skipNext = false; continue; }
                 const values = linesA[i].split('\t');
-                
                 if (i < 6 || values[0] === '獎金' || values[0] === 'Rows per page:' || values[0] === '' || values[0].match(/^\d+–\d+ of \d+$/)) {
                     continue;
                 }
-                
                 if (values.length >= 5 && !isNaN(values[3])) {
                     const nextLineValues = i + 1 < linesA.length ? linesA[i + 1].split('\t') : [];
                     const method = nextLineValues[0] || '';
-                    
                     if (method === 'O' || method === 'D') {
                         dataA.push({
                             productType: values[0],
@@ -298,150 +247,101 @@ USD	0.5	Override</textarea>
                             value1: parseInt(values[2]),
                             value2: parseFloat(values[3]),
                             unit: values[4],
-                            method: method
+                            method: method,
+                            matchedInB: false
                         });
                         skipNext = true;
                     }
                 }
             }
             
-            // 檢查重複項目（相同產品和相同手數）
+            // 檢查重複項目
             const duplicateGroups = getDuplicateDetails(dataA);
             if (Object.keys(duplicateGroups).length > 0) {
-                duplicateHTML += '<div class="duplicate-warning">';
-                duplicateHTML += '<h3>⚠️ 警告：發現重複的產品配置！</h3>';
-                duplicateHTML += '<p>Portal數據中有相同產品和相同手數的重複配置，這是不允許的。請檢查以下重複產品：</p>';
-                
+                duplicateHTML += '<div class="duplicate-warning"><h3>⚠️ 警告：發現重複的產品配置！</h3><p>Portal數據中有相同產品和相同手數的重複配置，這是不允許的。請檢查以下重複產品：</p>';
                 Object.keys(duplicateGroups).forEach(productKey => {
                     const items = duplicateGroups[productKey];
-                    const productType = items[0].productType;
-                    const productName = items[0].product;
-                    const lotSize = items[0].value1;
-                    
-                    duplicateHTML += `<h4>${productType} - ${productName} (手數: ${lotSize}, 共${items.length}筆記錄)</h4>`;
+                    duplicateHTML += `<h4>${items[0].productType} - ${items[0].product} (手數: ${items[0].value1}, 共${items.length}筆記錄)</h4>`;
                     duplicateHTML += '<table><tr><th>手數</th><th>數值</th><th>單位</th><th>方法</th><th>完整配置</th></tr>';
-                    
                     items.forEach(item => {
                         duplicateHTML += `<tr style="background: #ffe6e6;">
-                            <td><strong>${item.value1}</strong></td>
-                            <td>${item.value2}</td>
-                            <td>${item.unit}</td>
-                            <td>${getMethodName(item.method)}</td>
-                            <td style="font-family: monospace; font-size: 0.9em;">
-                                ${item.productType} ${item.product} ${item.value1} ${item.value2} ${item.unit} ${getMethodName(item.method)}
-                            </td>
+                            <td><strong>${item.value1}</strong></td><td>${item.value2}</td><td>${item.unit}</td><td>${getMethodName(item.method)}</td>
+                            <td style="font-family: monospace; font-size: 0.9em;">${item.productType} ${item.product} ${item.value1} ${item.value2} ${item.unit} ${getMethodName(item.method)}</td>
                         </tr>`;
                     });
-                    
                     duplicateHTML += '</table>';
                 });
-                
-                duplicateHTML += '<p style="color: #721c24; font-weight: bold; margin-top: 10px;">⚠️ 注意：發現重複配置，建議修正後重新檢查！</p>';
-                duplicateHTML += '</div>';
-                
+                duplicateHTML += '<p style="color: #721c24; font-weight: bold; margin-top: 10px;">⚠️ 注意：發現重複配置，建議修正後重新檢查！</p></div>';
                 document.getElementById('duplicateWarning').innerHTML = duplicateHTML;
             }
             
-            // 先執行增量規則檢查（只檢查有規則的產品）
+            // 2. 執行增量規則檢查 (完整還原詳細初版介面)
             const stepCheckResults = [];
             dataA.forEach(rowA => {
                 const stepCheck = checkStepRule(rowA.product, rowA.value2);
                 if (stepCheck) {
                     stepCheckResults.push({
-                        productType: rowA.productType,
-                        product: rowA.product,
-                        value: rowA.value2,
-                        unit: rowA.unit,
-                        step: stepCheck.step,
-                        valid: stepCheck.valid,
-                        reason: stepCheck.reason
+                        productType: rowA.productType, product: rowA.product, value: rowA.value2,
+                        unit: rowA.unit, step: stepCheck.step, valid: stepCheck.valid, reason: stepCheck.reason
                     });
                 }
             });
             
-            // 如果有需要檢查的產品，顯示增量檢查結果
             if (stepCheckResults.length > 0) {
                 stepHTML += '<div class="step-check"><h3>🔧 增量規則檢查（僅顯示需檢查的產品）：</h3>';
                 stepHTML += '<table><tr><th>產品類型</th><th>產品</th><th>數值</th><th>單位</th><th>增量要求</th><th>檢查結果</th><th>說明</th></tr>';
-                
                 stepCheckResults.forEach(result => {
                     const rowClass = result.valid ? 'step-pass' : 'step-fail';
-                    
                     stepHTML += `<tr class="${rowClass}">
-                        <td>${result.productType}</td>
-                        <td>${result.product}</td>
-                        <td>${result.value}</td>
-                        <td>${result.unit}</td>
-                        <td>${result.step}的倍數</td>
-                        <td><strong>${result.valid ? '✅ 通過' : '❌ 不通過'}</strong></td>
-                        <td>${result.reason}</td>
+                        <td>${result.productType}</td><td>${result.product}</td><td>${result.value}</td><td>${result.unit}</td><td>${result.step}的倍數</td>
+                        <td><strong>${result.valid ? '✅ 通過' : '❌ 不通過'}</strong></td><td>${result.reason}</td>
                     </tr>`;
                 });
-                
                 stepHTML += '</table></div>';
             } else {
                 stepHTML = '<div class="step-check"><h3>🔧 增量規則檢查：</h3><p>無需進行增量規則檢查的產品</p></div>';
             }
-            
             document.getElementById('stepCheckResult').innerHTML = stepHTML;
             
-            // 解析RBO網頁數據
+            // 3. 解析 RBO 數據 (Table B)
             const linesB = tableB.trim().split('\n');
             const dataB = [];
             skipNext = false;
 
             for (let i = 0; i < linesB.length; i++) {
-                if (skipNext) {
-                    skipNext = false;
-                    continue;
-                }
-                
+                if (skipNext) { skipNext = false; continue; }
                 const values = linesB[i].split('\t');
-                
-                if (i < 2) continue;
-                
-                if (i === 2) continue; // 跳過表頭
+                if (i < 2 || i === 2) continue;
                 
                 if (values.length >= 3 && values[1] && (values[1].includes('Trade Comm') || values[1].includes('Trade Volume'))) {
                     if (values.length >= 8 && values[7]) {
                         dataB.push({
-                            rebateType: values[1],
-                            selection: values[2],
-                            minLot: parseFloat(values[3]),
-                            startDate: values[4],
-                            endDate: values[5],
-                            unit: values[6],
-                            amount: parseFloat(values[7]),
-                            method: values[8]
+                            rebateType: values[1], selection: values[2], minLot: parseFloat(values[3]),
+                            startDate: values[4], endDate: values[5], unit: values[6], amount: parseFloat(values[7]),
+                            method: values[8], matchedInA: false
                         });
-                    } else {
-                        if (i + 1 < linesB.length) {
-                            const nextValues = linesB[i + 1].split('\t');
-                            if (nextValues.length >= 3) {
-                                dataB.push({
-                                    rebateType: values[1],
-                                    selection: values[2],
-                                    minLot: parseFloat(values[3]),
-                                    startDate: values[4],
-                                    endDate: values[5] || '',
-                                    unit: nextValues[0],
-                                    amount: parseFloat(nextValues[1]),
-                                    method: nextValues[2]
-                                });
-                                skipNext = true;
-                            }
+                    } else if (i + 1 < linesB.length) {
+                        const nextValues = linesB[i + 1].split('\t');
+                        if (nextValues.length >= 3) {
+                            dataB.push({
+                                rebateType: values[1], selection: values[2], minLot: parseFloat(values[3]),
+                                startDate: values[4], endDate: values[5] || '', unit: nextValues[0],
+                                amount: parseFloat(nextValues[1]), method: nextValues[2], matchedInA: false
+                            });
+                            skipNext = true;
                         }
                     }
                 }
             }
 
-            // 執行核對
-            resultHTML += '<div class="debug-info"><h3>📊 最終核對結果：</h3>';
-            resultHTML += '<table class="result-table"><tr><th>產品類型</th><th>產品</th><th>A手數</th><th>A數值</th><th>B Selection</th><th>B Min. Lot</th><th>B數值</th><th>B開始日期</th><th>B結束日期</th><th>A方法</th><th>B方法</th><th>狀態</th></tr>';
+            // 4. 執行整合核對核心
+            const modeText = currentMode === 'strict' ? '雙向完全相等版' : '標準 A ≦ B 版';
+            resultHTML += `<div class="debug-info"><h3>📊 最終核對結果（${modeText}）：</h3>`;
+            resultHTML += '<table class="result-table"><tr><th>產品類型</th><th>產品</th><th>A手數</th><th>A數值</th><th>B Selection</th><th>B Min. Lot</th><th>B數值</th><th class="date-col">B開始日期</th><th class="date-col">B結束日期</th><th>A方法</th><th>B方法</th><th>狀態</th></tr>';
             
+            // 第一步：以 A 為基準核對 B
             dataA.forEach(rowA => {
                 const mappedProducts = getMappedProduct(rowA.productType, rowA.product);
-                
                 let status = '';
                 let valueB = 'N/A';
                 let bSelection = 'N/A';
@@ -451,34 +351,20 @@ USD	0.5	Override</textarea>
                 let bMethod = 'N/A';
                 let rowClass = 'not-found';
                 
-                console.log('Checking product:', rowA.product, 'Mapped to:', mappedProducts);
-                
-                // 找出所有匹配的记录
-                const allMatches = [];
-                mappedProducts.forEach(product => {
-                    dataB.forEach(rowB => {
-                        if (rowB.selection === product) {
-                            allMatches.push(rowB);
-                        }
-                    });
-                });
-                
-                console.log('Found matches:', allMatches);
-                
-                // 优先选择Min. Lot为0的有效记录
-                const zeroLotMatches = allMatches.filter(rowB => 
+                const matchedRowsB = dataB.filter(rowB => 
+                    mappedProducts.includes(rowB.selection) && 
                     rowB.minLot === 0 && 
                     isDateValid(rowB.startDate, rowB.endDate)
                 );
                 
-                if (allMatches.length === 0) {
+                if (matchedRowsB.length === 0) {
                     status = '❌ RBO中沒有該產品';
                     rowClass = 'not-found';
-                } else if (zeroLotMatches.length === 0) {
-                    status = '❌ RBO中沒有該產品(無0手數記錄)';
-                    rowClass = 'not-found';
                 } else {
-                    const selectedMatch = zeroLotMatches[0];
+                    const selectedMatch = matchedRowsB[0];
+                    selectedMatch.matchedInA = true; 
+                    rowA.matchedInB = true;
+                    
                     valueB = selectedMatch.amount;
                     bSelection = selectedMatch.selection;
                     bMinLot = selectedMatch.minLot;
@@ -489,59 +375,64 @@ USD	0.5	Override</textarea>
                     if (!isMethodMatch(rowA.method, selectedMatch.method)) {
                         status = '⚠️ 產品存在但方法不匹配';
                         rowClass = 'method-mismatch';
-                    } else if (rowA.unit === '%' && rowA.value2 <= valueB) {
-                        status = '✅ 通過';
-                        rowClass = 'pass';
-                    } else if (rowA.unit !== '%' && rowA.value2 <= valueB) {
-                        status = '✅ 通過';
-                        rowClass = 'pass';
                     } else {
-                        status = '❌ 不通過';
-                        rowClass = 'fail';
+                        if (currentMode === 'strict') {
+                            // 嚴格模式：必須完全相等
+                            if (Math.abs(rowA.value2 - valueB) < 0.00001) {
+                                status = '✅ 通過'; rowClass = 'pass';
+                            } else {
+                                status = '❌ 不通過 (數值不相等)'; rowClass = 'fail';
+                            }
+                        } else {
+                            // 標準模式：A 必須小於或等於 B
+                            if (rowA.value2 <= valueB) {
+                                status = '✅ 通過'; rowClass = 'pass';
+                            } else {
+                                status = '❌ 不通過'; rowClass = 'fail';
+                            }
+                        }
                     }
                 }
                 
                 resultHTML += `<tr class="${rowClass}">
-                    <td>${rowA.productType}</td>
-                    <td>${rowA.product}</td>
-                    <td>${rowA.value1}</td>
-                    <td>${rowA.value2}</td>
-                    <td>${bSelection}</td>
-                    <td>${bMinLot}</td>
-                    <td>${valueB}</td>
-                    <td>${bStartDate}</td>
-                    <td>${bEndDate}</td>
-                    <td>${getMethodName(rowA.method)}</td>
-                    <td>${bMethod}</td>
+                    <td>${rowA.productType}</td><td>${rowA.product}</td><td>${rowA.value1}</td><td>${rowA.value2}</td>
+                    <td>${bSelection}</td><td>${bMinLot}</td><td>${valueB}</td>
+                    <td class="date-col">${bStartDate}</td><td class="date-col">${bEndDate}</td>
+                    <td>${getMethodName(rowA.method)}</td><td>${bMethod}</td>
                     <td><strong>${status}</strong></td>
                 </tr>`;
             });
             
+            // 第二步：反向檢查（僅在嚴格模式下啟動 B有A冇）
+            if (currentMode === 'strict') {
+                const rboOnlyRows = dataB.filter(rowB => 
+                    rowB.minLot === 0 && isDateValid(rowB.startDate, rowB.endDate) && !rowB.matchedInA
+                );
+                if (rboOnlyRows.length > 0) {
+                    rboOnlyRows.forEach(rowB => {
+                        resultHTML += `<tr class="fail" style="border: 2px solid #dc3545;">
+                            <td>N/A</td><td>N/A</td><td>N/A</td><td><span style="color:red; font-weight:bold;">A無此產品</span></td>
+                            <td>${rowB.selection}</td><td>${rowB.minLot}</td><td>${rowB.amount}</td>
+                            <td class="date-col">N/A</td><td class="date-col">N/A</td>
+                            <td>N/A</td><td>${rowB.method}</td>
+                            <td><strong style="color:#721c24;">❌ Portal中沒有該產品 (B有A冇)</strong></td>
+                        </tr>`;
+                    });
+                }
+            }
+            
             resultHTML += '</table></div>';
             document.getElementById('finalResult').innerHTML = resultHTML;
 
-            // 顯示解析後的數據
+            // 顯示調試解析數據
             debugHTML = '<div class="debug-info"><h3>解析後的A數據：</h3><table><tr><th>產品類型</th><th>產品</th><th>手數</th><th>數值</th><th>單位</th><th>方法</th></tr>';
-            dataA.forEach(row => {
-                debugHTML += `<tr><td>${row.productType}</td><td>${row.product}</td><td>${row.value1}</td><td>${row.value2}</td><td>${row.unit}</td><td>${getMethodName(row.method)}</td></tr>`;
-            });
+            dataA.forEach(row => { debugHTML += `<tr><td>${row.productType}</td><td>${row.product}</td><td>${row.value1}</td><td>${row.value2}</td><td>${row.unit || 'N/A'}</td><td>${getMethodName(row.method)}</td></tr>`; });
             debugHTML += '</table></div>';
-
+            
             debugHTML += '<div class="debug-info"><h3>解析後的B數據：</h3><table><tr><th>Rebate Type</th><th>Selection</th><th>Min. Lot</th><th>Start Date</th><th>End Date</th><th>Unit</th><th>Amount</th><th>Method</th></tr>';
-            dataB.forEach(row => {
-                debugHTML += `<tr>
-                    <td>${row.rebateType}</td>
-                    <td>${row.selection}</td>
-                    <td>${row.minLot}</td>
-                    <td>${row.startDate || '無限期'}</td>
-                    <td>${row.endDate || '無限期'}</td>
-                    <td>${row.unit}</td>
-                    <td>${row.amount}</td>
-                    <td>${row.method}</td>
-                </tr>`;
-            });
+            dataB.forEach(row => { debugHTML += `<tr><td>${row.rebateType}</td><td>${row.selection}</td><td>${row.minLot}</td><td>${row.startDate || '無限期'}</td><td>${row.endDate || '無限期'}</td><td>${row.unit}</td><td>${row.amount}</td><td>${row.method}</td></tr>`; });
             debugHTML += '</table></div>';
-
+            
             document.getElementById('debugResult').innerHTML = debugHTML;
         }
         
@@ -554,10 +445,7 @@ USD	0.5	Override</textarea>
             document.getElementById('finalResult').innerHTML = '';
         }
         
-        // 自動執行解析
-        setTimeout(() => {
-            parseAndCheck();
-        }, 1000);
+        setTimeout(() => { parseAndCheck(); }, 1000);
     </script>
 </body>
 </html>
