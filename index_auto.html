@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>檢查一樣小工具 (雙向完全相等版)</title>
+    <title>開IB檢查小工具 (雙向完全相等+完整增量版)</title>
     <meta charset="UTF-8">
     <style>
         body { font-family: Arial; margin: 20px; background: #f0f8ff; }
@@ -27,7 +27,7 @@
     </style>
 </head>
 <body>
-    <h1>🔍 一樣 Bonus檢查工具 (雙向完全相等版)</h1>
+    <h1>🔍 普通IB Bonus檢查工具 (雙向完全相等版)</h1>
     
     <div class="container">
         <div class="section">
@@ -271,7 +271,7 @@ USD	0.5	Override</textarea>
                             value2: parseFloat(values[3]),
                             unit: values[4],
                             method: method,
-                            matchedInB: false // 用於追蹤是否有被 RBO 匹配到
+                            matchedInB: false
                         });
                         skipNext = true;
                     }
@@ -281,19 +281,27 @@ USD	0.5	Override</textarea>
             // 檢查重複項目
             const duplicateGroups = getDuplicateDetails(dataA);
             if (Object.keys(duplicateGroups).length > 0) {
-                duplicateHTML += '<div class="duplicate-warning"><h3>⚠️ 警告：發現重複的產品配置！</h3><table>';
+                duplicateHTML += '<div class="duplicate-warning"><h3>⚠️ 警告：發現重複的產品配置！</h3><p>Portal數據中有相同產品和相同手數的重複配置，這是不允許的。請檢查以下重複產品：</p>';
                 Object.keys(duplicateGroups).forEach(productKey => {
                     const items = duplicateGroups[productKey];
-                    duplicateHTML += `<tr><th>${items[0].productType} - ${items[0].product} 重複</th></tr>`;
+                    duplicateHTML += `<h4>${items[0].productType} - ${items[0].product} (手數: ${items[0].value1}, 共${items.length}筆記錄)</h4>`;
+                    duplicateHTML += '<table><tr><th>手數</th><th>數值</th><th>單位</th><th>方法</th><th>完整配置</th></tr>';
                     items.forEach(item => {
-                        duplicateHTML += `<tr><td>手數: ${item.value1} | 數值: ${item.value2} | 方法: ${getMethodName(item.method)}</td></tr>`;
+                        duplicateHTML += `<tr style="background: #ffe6e6;">
+                            <td><strong>${item.value1}</strong></td>
+                            <td>${item.value2}</td>
+                            <td>${item.unit}</td>
+                            <td>${getMethodName(item.method)}</td>
+                            <td style="font-family: monospace; font-size: 0.9em;">${item.productType} ${item.product} ${item.value1} ${item.value2} ${item.unit} ${getMethodName(item.method)}</td>
+                        </tr>`;
                     });
+                    duplicateHTML += '</table>';
                 });
-                duplicateHTML += '</table></div>';
+                duplicateHTML += '<p style="color: #721c24; font-weight: bold; margin-top: 10px;">⚠️ 注意：發現重複配置，建議修正後重新檢查！</p></div>';
                 document.getElementById('duplicateWarning').innerHTML = duplicateHTML;
             }
             
-            // 執行增量規則檢查
+            // 2. 執行增量規則檢查 (【已修復】恢復原本初版的表格欄位排版與詳細格式)
             const stepCheckResults = [];
             dataA.forEach(rowA => {
                 const stepCheck = checkStepRule(rowA.product, rowA.value2);
@@ -311,15 +319,27 @@ USD	0.5	Override</textarea>
             });
             
             if (stepCheckResults.length > 0) {
-                stepHTML += '<div class="step-check"><h3>🔧 增量規則檢查：</h3><table><tr><th>產品</th><th>數值</th><th>檢查結果</th></tr>';
+                stepHTML += '<div class="step-check"><h3>🔧 增量規則檢查（僅顯示需檢查的產品）：</h3>';
+                stepHTML += '<table><tr><th>產品類型</th><th>產品</th><th>數值</th><th>單位</th><th>增量要求</th><th>檢查結果</th><th>說明</th></tr>';
                 stepCheckResults.forEach(result => {
-                    stepHTML += `<tr class="${result.valid ? 'step-pass' : 'step-fail'}"><td>${result.productType}_${result.product}</td><td>${result.value}</td><td><strong>${result.reason}</strong></td></tr>`;
+                    const rowClass = result.valid ? 'step-pass' : 'step-fail';
+                    stepHTML += `<tr class="${rowClass}">
+                        <td>${result.productType}</td>
+                        <td>${result.product}</td>
+                        <td>${result.value}</td>
+                        <td>${result.unit}</td>
+                        <td>${result.step}的倍數</td>
+                        <td><strong>${result.valid ? '✅ 通過' : '❌ 不通過'}</strong></td>
+                        <td>${result.reason}</td>
+                    </tr>`;
                 });
                 stepHTML += '</table></div>';
+            } else {
+                stepHTML = '<div class="step-check"><h3>🔧 增量規則檢查：</h3><p>無需進行增量規則檢查的產品</p></div>';
             }
             document.getElementById('stepCheckResult').innerHTML = stepHTML;
             
-            // 2. 解析 RBO 網頁數據 (Table B)
+            // 3. 解析 RBO 網頁數據 (Table B)
             const linesB = tableB.trim().split('\n');
             const dataB = [];
             skipNext = false;
@@ -343,7 +363,7 @@ USD	0.5	Override</textarea>
                             unit: values[6],
                             amount: parseFloat(values[7]),
                             method: values[8],
-                            matchedInA: false // 用於追蹤是否有在 Portal 中找到
+                            matchedInA: false
                         });
                     } else if (i + 1 < linesB.length) {
                         const nextValues = linesB[i + 1].split('\t');
@@ -365,11 +385,11 @@ USD	0.5	Override</textarea>
                 }
             }
 
-            // 3. 執行雙向核對
+            // 4. 執行雙向完全相等核對
             resultHTML += '<div class="debug-info"><h3>📊 最終核對結果（雙向完全相等版）：</h3>';
             resultHTML += '<table class="result-table"><tr><th>產品類型</th><th>產品</th><th>A手數</th><th>A數值</th><th>B Selection</th><th>B Min. Lot</th><th>B數值</th><th>A方法</th><th>B方法</th><th>狀態</th></tr>';
             
-            // 第一步：以 A 為基準檢查 B
+            // 第一步：以 A 為基準核對 B
             dataA.forEach(rowA => {
                 const mappedProducts = getMappedProduct(rowA.productType, rowA.product);
                 let status = '';
@@ -379,7 +399,6 @@ USD	0.5	Override</textarea>
                 let bMethod = 'N/A';
                 let rowClass = 'not-found';
                 
-                // 找出所有在 RBO 中名稱匹配的有效 0 手數記錄
                 const matchedRowsB = dataB.filter(rowB => 
                     mappedProducts.includes(rowB.selection) && 
                     rowB.minLot === 0 && 
@@ -391,7 +410,7 @@ USD	0.5	Override</textarea>
                     rowClass = 'not-found';
                 } else {
                     const selectedMatch = matchedRowsB[0];
-                    selectedMatch.matchedInA = true; // 標記此條 RBO 數據已被 Portal 使用
+                    selectedMatch.matchedInA = true; 
                     rowA.matchedInB = true;
                     
                     valueB = selectedMatch.amount;
@@ -425,7 +444,7 @@ USD	0.5	Override</textarea>
                 </tr>`;
             });
             
-            // 第二步：反向檢查！找出所有「RBO有，但Portal沒有」的 0 手數有效項目
+            // 第二步：反向檢查（B有A冇）
             const rboOnlyRows = dataB.filter(rowB => 
                 rowB.minLot === 0 && 
                 isDateValid(rowB.startDate, rowB.endDate) && 
@@ -456,6 +475,11 @@ USD	0.5	Override</textarea>
             debugHTML = '<div class="debug-info"><h3>解析後的A數據：</h3><table><tr><th>產品類型</th><th>產品</th><th>手數</th><th>數值</th><th>方法</th></tr>';
             dataA.forEach(row => { debugHTML += `<tr><td>${row.productType}</td><td>${row.product}</td><td>${row.value1}</td><td>${row.value2}</td><td>${getMethodName(row.method)}</td></tr>`; });
             debugHTML += '</table></div>';
+            
+            debugHTML += '<div class="debug-info"><h3>解析後的B數據：</h3><table><tr><th>Rebate Type</th><th>Selection</th><th>Min. Lot</th><th>Unit</th><th>Amount</th><th>Method</th></tr>';
+            dataB.forEach(row => { debugHTML += `<tr><td>${row.rebateType}</td><td>${row.selection}</td><td>${row.minLot}</td><td>${row.unit}</td><td>${row.amount}</td><td>${row.method}</td></tr>`; });
+            debugHTML += '</table></div>';
+            
             document.getElementById('debugResult').innerHTML = debugHTML;
         }
         
