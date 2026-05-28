@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>開IB檢查小工具 (雙向完全相等版)</title>
+    <title>檢查一樣小工具 (雙向完全相等版)</title>
     <meta charset="UTF-8">
     <style>
         body { font-family: Arial; margin: 20px; background: #f0f8ff; }
@@ -27,7 +27,7 @@
     </style>
 </head>
 <body>
-    <h1>🔍 普通IB Bonus檢查工具 (雙向完全相等版)</h1>
+    <h1>🔍 一樣 Bonus檢查工具 (雙向完全相等版)</h1>
     
     <div class="container">
         <div class="section">
