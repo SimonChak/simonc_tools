@@ -110,11 +110,11 @@ USD	0.5	Override</textarea>
             <div class="control-panel">
                 <div class="panel-left">
                     <label for="checkMode"><strong>🛠️ 比對模式：</strong></label>
-                    <select id="checkMode" class="mode-select" onchange="parseAndCheck()">
+                    <select id="checkMode" class="mode-select" onchange="parseAndCheck(true)">
                         <option value="standard" selected>📉 標準模式 (檢查 A <= B)</option>
                         <option value="strict">⚖️ 嚴格雙向完全相等模式 (檢查 A == B)</option>
                     </select>
-                    <button onclick="parseAndCheck()">開始核對</button>
+                    <button onclick="parseAndCheck(true)">開始核對</button>
                 </div>
                 
                 <div class="panel-right">
@@ -282,17 +282,15 @@ USD	0.5	Override</textarea>
             return duplicateGroups;
         }
 
-        function parseAndCheck() {
+        function parseAndCheck(forceSyncMenu = false) {
             try {
                 const tableA = document.getElementById('tableA').value;
                 const tableB = document.getElementById('tableB').value;
                 
-                // 如果是透過選單觸發此函數，就同步 activeCheckMode 爲下拉選單的值
-                //（排除當前是 jewel 或 hmlv 的情況，這樣切換選單才能正常轉回標準/嚴格）
                 const menuMode = document.getElementById('checkMode').value;
-                if (event && event.type === 'change' && event.target.id === 'checkMode') {
-                    activeCheckMode = menuMode;
-                } else if (activeCheckMode !== 'jewel' && activeCheckMode !== 'hmlv') {
+                
+                // 如果強制要求同步選單（即點擊了「開始核對」或切換了下拉選單），直接同步模式
+                if (forceSyncMenu) {
                     activeCheckMode = menuMode;
                 }
                 
