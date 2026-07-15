@@ -10,11 +10,20 @@
         textarea { width: 100%; height: 300px; padding: 10px; border: 2px solid #007bff; border-radius: 5px; font-family: monospace; }
         
         /* 控制列樣式 */
-        .control-panel { background: #e2e3e5; padding: 15px; border-radius: 8px; margin-bottom: 15px; display: flex; align-items: center; gap: 15px; }
+        .control-panel { background: #e2e3e5; padding: 15px; border-radius: 8px; margin-bottom: 15px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 15px; }
+        .panel-left { display: flex; align-items: center; gap: 10px; }
+        .panel-right { display: flex; align-items: center; gap: 10px; }
         .mode-select { padding: 8px 12px; font-size: 1rem; border-radius: 5px; border: 2px solid #007bff; font-weight: bold; background: white; cursor: pointer; }
         
-        button { background: #007bff; color: white; padding: 12px 20px; border: none; border-radius: 5px; cursor: pointer; margin: 5px; font-weight: bold; }
+        button { background: #007bff; color: white; padding: 10px 18px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 0.95rem; }
         button:hover { background: #0056b3; }
+        
+        /* 獨立上限按鈕樣式 */
+        .btn-jewel { background: #17a2b8; }
+        .btn-jewel:hover { background: #138496; }
+        .btn-hmlv { background: #fd7e14; }
+        .btn-hmlv:hover { background: #e06907; }
+        
         .btn-clear { background: #6c757d; }
         .btn-clear:hover { background: #5a6268; }
         
@@ -99,15 +108,21 @@ USD	0.5	Override</textarea>
             <h2>📊 解析與核對結果</h2>
             
             <div class="control-panel">
-                <label for="checkMode"><strong>🛠️ 選擇核對模式：</strong></label>
-                <select id="checkMode" class="mode-select" onchange="parseAndCheck()">
-                    <option value="standard" selected>📉 標準模式 (檢查 A <= B，顯示日期欄位)</option>
-                    <option value="strict">⚖️ 嚴格雙向完全相等模式 (檢查 A == B，啟動 B有A冇 檢查)</option>
-                    <option value="jewel">💎 JEWEL 固定上限模式 (僅核對 A 是否超過 JEWEL 上限)</option>
-                    <option value="hmlv">🔥 HMLV 固定上限模式 (僅核對 A 是否超過 HMLV 上限)</option>
-                </select>
-                <button onclick="parseAndCheck()">開始解析與核對</button>
-                <button onclick="clearAll()" class="btn-clear">清空所有</button>
+                <div class="panel-left">
+                    <label for="checkMode"><strong>🛠️ 比對模式：</strong></label>
+                    <select id="checkMode" class="mode-select" onchange="parseAndCheck()">
+                        <option value="standard" selected>📉 標準模式 (檢查 A <= B)</option>
+                        <option value="strict">⚖️ 嚴格雙向完全相等模式 (檢查 A == B)</option>
+                    </select>
+                    <button onclick="parseAndCheck()">開始核對</button>
+                </div>
+                
+                <div class="panel-right">
+                    <strong>⚡ 快速上限檢查：</strong>
+                    <button class="btn-jewel" onclick="runLimitCheck('jewel')">💎 執行 JEWEL 上限核對</button>
+                    <button class="btn-hmlv" onclick="runLimitCheck('hmlv')">🔥 執行 HMLV 上限核對</button>
+                    <button onclick="clearAll()" class="btn-clear">清空所有</button>
+                </div>
             </div>
             
             <div id="duplicateWarning"></div>
@@ -192,6 +207,15 @@ USD	0.5	Override</textarea>
             'GASUSD': 0.5, '天然氣': 0.5
         };
 
+        // 當前運行的模式變數，默認為選單上的模式
+        let activeCheckMode = 'standard';
+
+        // 點擊獨立按鈕時，設置 activeCheckMode 並執行
+        function runLimitCheck(limitType) {
+            activeCheckMode = limitType;
+            parseAndCheck();
+        }
+
         function checkStepRule(productName, value) {
             const step = stepRules[productName];
             if (!step) return null;
@@ -262,15 +286,23 @@ USD	0.5	Override</textarea>
             try {
                 const tableA = document.getElementById('tableA').value;
                 const tableB = document.getElementById('tableB').value;
-                const currentMode = document.getElementById('checkMode').value; // 獲取當前選擇模式
+                
+                // 如果是透過選單觸發此函數，就同步 activeCheckMode 爲下拉選單的值
+                //（排除當前是 jewel 或 hmlv 的情況，這樣切換選單才能正常轉回標準/嚴格）
+                const menuMode = document.getElementById('checkMode').value;
+                if (event && event.type === 'change' && event.target.id === 'checkMode') {
+                    activeCheckMode = menuMode;
+                } else if (activeCheckMode !== 'jewel' && activeCheckMode !== 'hmlv') {
+                    activeCheckMode = menuMode;
+                }
                 
                 // 根據模式對最外層容器動態加上 class，方便 CSS 控制日期欄位隱含
                 document.body.classList.remove('mode-strict', 'mode-jewel', 'mode-hmlv');
-                if (currentMode === 'strict') {
+                if (activeCheckMode === 'strict') {
                     document.body.classList.add('mode-strict');
                     document.getElementById('tableB').style.background = 'white';
-                } else if (currentMode === 'jewel' || currentMode === 'hmlv') {
-                    document.body.classList.add('mode-' + currentMode);
+                } else if (activeCheckMode === 'jewel' || activeCheckMode === 'hmlv') {
+                    document.body.classList.add('mode-' + activeCheckMode);
                     document.getElementById('tableB').style.background = '#e9ecef'; // 固定上限模式下把 B 面板變灰表示無需填寫
                 } else {
                     document.getElementById('tableB').style.background = 'white';
@@ -361,9 +393,9 @@ USD	0.5	Override</textarea>
                 document.getElementById('stepCheckResult').innerHTML = stepHTML;
                 
                 // 3. 執行整合核對核心
-                if (currentMode === 'jewel' || currentMode === 'hmlv') {
+                if (activeCheckMode === 'jewel' || activeCheckMode === 'hmlv') {
                     // 固定上限核對分支 (JEWEL 或 HMLV)
-                    const isHmlv = currentMode === 'hmlv';
+                    const isHmlv = activeCheckMode === 'hmlv';
                     const currentLimits = isHmlv ? hmlvLimits : jewelLimits;
                     const modeLabel = isHmlv ? '🔥 HMLV 固定上限模式' : '💎 JEWEL 固定上限模式';
                     
@@ -439,7 +471,7 @@ USD	0.5	Override</textarea>
                     }
 
                     // 原有核對邏輯 (完全不做任何變動)
-                    const modeText = currentMode === 'strict' ? '雙向完全相等版' : '標準 A ≦ B 版';
+                    const modeText = activeCheckMode === 'strict' ? '雙向完全相等版' : '標準 A ≦ B 版';
                     resultHTML += `<div class="debug-info"><h3>📊 最終核對結果（${modeText}）：</h3>`;
                     resultHTML += '<table class="result-table"><tr><th>產品類型</th><th>產品</th><th>A手數</th><th>A數值</th><th>B Selection</th><th>B Min. Lot</th><th>B數值</th><th class="date-col">B開始日期</th><th class="date-col">B結束日期</th><th>A方法</th><th>B方法</th><th>狀態</th></tr>';
                     
@@ -482,7 +514,7 @@ USD	0.5	Override</textarea>
                                 status = '⚠️ 產品存在但方法不匹配' + zeroRemind;
                                 rowClass = 'method-mismatch';
                             } else {
-                                if (currentMode === 'strict') {
+                                if (activeCheckMode === 'strict') {
                                     if (Math.abs(rowA.value2 - valueB) < 0.00001) {
                                         status = '✅ 通過' + zeroRemind; rowClass = 'pass';
                                     } else {
@@ -507,7 +539,7 @@ USD	0.5	Override</textarea>
                         </tr>`;
                     });
                     
-                    if (currentMode === 'strict') {
+                    if (activeCheckMode === 'strict') {
                         const rboOnlyRows = dataB.filter(rowB => 
                             rowB.minLot === 0 && isDateValid(rowB.startDate, rowB.endDate) && !rowB.matchedInA
                         );
