@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>整合版 IB Bonus 檢查工具 (支援模式切換)</title>
+    <title>整合版 IB Bonus 檢查工具 (支援模式切換與跳BAR邏輯)</title>
     <meta charset="UTF-8">
     <style>
         body { font-family: Arial; margin: 20px; background: #f0f8ff; }
@@ -289,19 +289,19 @@ USD	0.5	Override</textarea>
                 
                 const menuMode = document.getElementById('checkMode').value;
                 
-                // 如果強制要求同步選單（即點擊了「開始核對」或切換了下拉選單），直接同步模式
+                // 如果強制要求同步選單（即點擊了「開始核對」或切換了下拉選單），轉換模式
                 if (forceSyncMenu) {
                     activeCheckMode = menuMode;
                 }
                 
-                // 根據模式對最外層容器動態加上 class，方便 CSS 控制日期欄位隱含
+                // 根據模式動態控制 CSS
                 document.body.classList.remove('mode-strict', 'mode-jewel', 'mode-hmlv');
                 if (activeCheckMode === 'strict') {
                     document.body.classList.add('mode-strict');
                     document.getElementById('tableB').style.background = 'white';
                 } else if (activeCheckMode === 'jewel' || activeCheckMode === 'hmlv') {
                     document.body.classList.add('mode-' + activeCheckMode);
-                    document.getElementById('tableB').style.background = '#e9ecef'; // 固定上限模式下把 B 面板變灰表示無需填寫
+                    document.getElementById('tableB').style.background = '#e9ecef';
                 } else {
                     document.getElementById('tableB').style.background = 'white';
                 }
@@ -409,7 +409,6 @@ USD	0.5	Override</textarea>
                         if (pType === '標準') pType = 'STD';
                         if (pType === '專業') pType = 'PRO';
                         
-                        // 建立 A 數值為 0 的提醒文字
                         let zeroRemind = (rowA.value2 === 0) ? '<span class="zero-warning">⚠️ 數值為0</span>' : '';
                         
                         if (currentLimits[pType] && currentLimits[pType][rowA.product] !== undefined) {
@@ -468,7 +467,6 @@ USD	0.5	Override</textarea>
                         }
                     }
 
-                    // 原有核對邏輯 (完全不做任何變動)
                     const modeText = activeCheckMode === 'strict' ? '雙向完全相等版' : '標準 A ≦ B 版';
                     resultHTML += `<div class="debug-info"><h3>📊 最終核對結果（${modeText}）：</h3>`;
                     resultHTML += '<table class="result-table"><tr><th>產品類型</th><th>產品</th><th>A手數</th><th>A數值</th><th>B Selection</th><th>B Min. Lot</th><th>B數值</th><th class="date-col">B開始日期</th><th class="date-col">B結束日期</th><th>A方法</th><th>B方法</th><th>狀態</th></tr>';
@@ -484,20 +482,36 @@ USD	0.5	Override</textarea>
                         let bMethod = 'N/A';
                         let rowClass = 'not-found';
                         
-                        // 建立 A 數值為 0 的提醒文字
                         let zeroRemind = (rowA.value2 === 0) ? '<span class="zero-warning">⚠️ 數值為0</span>' : '';
                         
-                        const matchedRowsB = dataB.filter(rowB => 
+                        // 1. 篩選所有名稱匹配且日期有效的 B 項目
+                        const allProductMatchesB = dataB.filter(rowB => 
                             mappedProducts.includes(rowB.selection) && 
-                            rowB.minLot === 0 && 
                             isDateValid(rowB.startDate, rowB.endDate)
                         );
                         
-                        if (matchedRowsB.length === 0) {
+                        if (allProductMatchesB.length === 0) {
                             status = '❌ RBO中沒有該產品' + zeroRemind;
                             rowClass = 'not-found';
                         } else {
-                            const selectedMatch = matchedRowsB[0];
+                            // 2. 引入跳BAR邏輯：優先找 Min.Lot <= A手數 且最接近 A手數 的 B 項目
+                            const validMinLotMatches = allProductMatchesB
+                                .filter(rowB => rowB.minLot <= rowA.value1)
+                                .sort((a, b) => b.minLot - a.minLot); // 降序，取最大且合法者
+
+                            let selectedMatch = null;
+                            let isJumpBar = false;
+
+                            if (validMinLotMatches.length > 0) {
+                                selectedMatch = validMinLotMatches[0];
+                            } else {
+                                // 屬於「跳BAR」邏輯（例如 A手數=50，但 B只有 0 和 100；或者 A手數=0，但 A數值提早升級）
+                                // 此時以 B 中允許的最高金額上限為依據進行核對
+                                const maxAllowedB = allProductMatchesB.reduce((prev, current) => (prev.amount > current.amount) ? prev : current);
+                                selectedMatch = maxAllowedB;
+                                isJumpBar = true;
+                            }
+
                             selectedMatch.matchedInA = true; 
                             rowA.matchedInB = true;
                             
@@ -519,10 +533,13 @@ USD	0.5	Override</textarea>
                                         status = '❌ 不通過 (數值不相等)' + zeroRemind; rowClass = 'fail';
                                     }
                                 } else {
+                                    // 標準模式 A <= B 檢查
                                     if (rowA.value2 <= valueB) {
-                                        status = '✅ 通過' + zeroRemind; rowClass = 'pass';
+                                        status = (isJumpBar ? '✅ 通過 (跳BAR)' : '✅ 通過') + zeroRemind; 
+                                        rowClass = 'pass';
                                     } else {
-                                        status = '❌ 不通過' + zeroRemind; rowClass = 'fail';
+                                        status = '❌ 不通過 (數值超標)' + zeroRemind; 
+                                        rowClass = 'fail';
                                     }
                                 }
                             }
@@ -557,7 +574,7 @@ USD	0.5	Override</textarea>
                     resultHTML += '</table></div>';
                     document.getElementById('finalResult').innerHTML = resultHTML;
 
-                    // 僅在非上限模式下，輸出原本的 B 數據調試區
+                    // 輸出 B 數據調試區
                     debugHTML += '<div class="debug-info"><h3>解析後的B數據：</h3><table><tr><th>Rebate Type</th><th>Selection</th><th>Min. Lot</th><th>Start Date</th><th>End Date</th><th>Unit</th><th>Amount</th><th>Method</th></tr>';
                     dataB.forEach(row => { debugHTML += `<tr><td>${row.rebateType}</td><td>${row.selection}</td><td>${row.minLot}</td><td>${row.startDate || '無限期'}</td><td>${row.endDate || '無限期'}</td><td>${row.unit}</td><td>${row.amount}</td><td>${row.method}</td></tr>`; });
                     debugHTML += '</table></div>';
