@@ -497,15 +497,16 @@
             updateAPreview();
         }
 
+        // 修改點：允許未來生效的日期通過驗證
         function isDateValid(startDate, endDate) {
             const today = new Date();
-            if (startDate && startDate.trim() !== '') {
-                const start = new Date(startDate.replace(/\//g, '-'));
-                if (start > today) return false;
-            }
+            today.setHours(0, 0, 0, 0); // 將時間歸零，確保以日期為單位進行公正比較
+
+            // 移除 start > today 的限制，讓未來生效的資料也能被採納與核對
             if (endDate && endDate.trim() !== '') {
                 const end = new Date(endDate.replace(/\//g, '-'));
-                if (end < today) return false;
+                end.setHours(0, 0, 0, 0);
+                if (end < today) return false; // 僅過濾掉已經過期的數據
             }
             return true;
         }
