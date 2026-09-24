@@ -71,6 +71,7 @@
         .btn-hmlv { background: #fd7e14; font-weight: bold; padding: 12px 20px; border: none; border-radius: 5px; cursor: pointer; margin: 10px 5px; color: white; }
         .btn-hmlv:hover { background: #e06907; }
         .zero-warning { display: inline-block; background: #ffc107; color: #000; padding: 2px 6px; font-size: 0.85em; border-radius: 4px; font-weight: bold; margin-left: 5px; }
+        .dup-warning { display: inline-block; background: #ff4d4f; color: #fff; padding: 2px 6px; font-size: 0.85em; border-radius: 4px; font-weight: bold; margin-left: 5px; }
     </style>
 </head>
 <body>
@@ -376,7 +377,6 @@
             'STD': 'STD', '標準': 'STD', '*': 'STD'
         };
 
-        // 名稱簡化對應表（將 B 數據名稱如 FX、GAS 轉回上限表使用的鍵值）
         const rawNameToLimitKey = {
             'FX': 'Forex',
             'GOLD': 'Gold',
@@ -497,16 +497,14 @@
             updateAPreview();
         }
 
-        // 修改點：允許未來生效的日期通過驗證
         function isDateValid(startDate, endDate) {
             const today = new Date();
-            today.setHours(0, 0, 0, 0); // 將時間歸零，確保以日期為單位進行公正比較
+            today.setHours(0, 0, 0, 0);
 
-            // 移除 start > today 的限制，讓未來生效的資料也能被採納與核對
             if (endDate && endDate.trim() !== '') {
                 const end = new Date(endDate.replace(/\//g, '-'));
                 end.setHours(0, 0, 0, 0);
-                if (end < today) return false; // 僅過濾掉已經過期的數據
+                if (end < today) return false;
             }
             return true;
         }
@@ -566,7 +564,6 @@
             return dataB;
         }
 
-        // 精準解析產品類別與簡化產品名稱
         function parseProductDetails(rawName) {
             let pType = 'STD';
             let cleanName = rawName;
@@ -586,7 +583,6 @@
             return { pType, limitKey };
         }
 
-        // 修正後的上限核對
         function runLimitCheck(limitType) {
             collectAData();
             const tableBText = document.getElementById('tableB').value;
@@ -617,7 +613,28 @@
                 return;
             }
 
-            let resultHTML = `<div class="debug-info"><h3>📊 最終核對結果（${modeLabel}） ${sourceLabel}：</h3>`;
+            const counts = {};
+            const duplicates = new Set();
+
+            checkTargetData.forEach(item => {
+                const key = `${item.product}|${item.lot}`;
+                counts[key] = (counts[key] || 0) + 1;
+                if (counts[key] > 1) {
+                    duplicates.add(key);
+                }
+            });
+
+            let warningBanner = "";
+            if (duplicates.size > 0) {
+                const dupList = Array.from(duplicates).map(k => k.split('|')[0]).join(', ');
+                warningBanner = `
+                    <div style="background-color: #fff3cd; color: #856404; padding: 12px; border: 1px solid #ffeeba; border-radius: 5px; margin-bottom: 15px; font-weight: bold; font-size: 1.05em;">
+                        ⚠️ 警告：檢測到重複的產品設定（如：${dupList}），請確認數據是否重複貼上或輸入！
+                    </div>
+                `;
+            }
+
+            let resultHTML = `<div class="debug-info">${warningBanner}<h3>📊 最終核對結果（${modeLabel}） ${sourceLabel}：</h3>`;
             resultHTML += `<table class="result-table"><tr><th>B產品類型</th><th>B原始產品名</th><th>比對關鍵字</th><th>B手數</th><th>B收費數值</th><th>${isHmlv ? 'HMLV' : 'JEWEL'}上限值</th><th>狀態</th></tr>`;
 
             checkTargetData.forEach(row => {
@@ -625,21 +642,23 @@
                 let rowClass = 'not-found';
                 let maxLimit = '未定義';
 
-                // 精準提取類別與核對Key
                 const { pType, limitKey } = parseProductDetails(row.product);
+                
+                const isDuplicate = counts[`${row.product}|${row.lot}`] > 1;
+                let dupWarn = isDuplicate ? '<span class="dup-warning">⚠️ 重複資料</span>' : '';
                 let zeroRemind = (row.value === 0) ? '<span class="zero-warning">⚠️ 數值為0</span>' : '';
 
                 if (currentLimits[pType] && currentLimits[pType][limitKey] !== undefined) {
                     maxLimit = currentLimits[pType][limitKey];
                     if (row.value <= maxLimit) {
-                        status = '✅ 通過 (未超標)' + zeroRemind;
+                        status = '✅ 通過 (未超標)' + zeroRemind + dupWarn;
                         rowClass = 'pass';
                     } else {
-                        status = `❌ 錯誤 (已超標，上限為 ${maxLimit})` + zeroRemind;
+                        status = `❌ 錯誤 (已超標，上限為 ${maxLimit})` + zeroRemind + dupWarn;
                         rowClass = 'fail';
                     }
                 } else {
-                    status = `⚠️ ${isHmlv ? 'HMLV' : 'JEWEL'}上限表中無此對應產品` + zeroRemind;
+                    status = `⚠️ ${isHmlv ? 'HMLV' : 'JEWEL'}上限表中無此對應產品` + zeroRemind + dupWarn;
                     rowClass = 'not-found';
                 }
 
@@ -659,6 +678,7 @@
             document.getElementById('debugResult').innerHTML = '';
         }
 
+        // 修改：在「解析與核對 (A, B, C)」增加重複資料檢查與提示
         function parseAndCheck() {
             collectAData();
             const tableB = document.getElementById('tableB').value;
@@ -717,7 +737,43 @@
                 }
             }
 
-            resultHTML += '<div class="debug-info"><h3>📊 最終核對結果：</h3>';
+            // ------------------- 【新增：重複項目檢測】 -------------------
+            const bCounts = {};
+            const duplicateProducts = new Set();
+
+            dataB.forEach(rowB => {
+                if (rowB.isValid) {
+                    const key = `${rowB.selection}|${rowB.minLot}`;
+                    bCounts[key] = (bCounts[key] || 0) + 1;
+                    if (bCounts[key] > 1) {
+                        duplicateProducts.add(rowB.selection);
+                    }
+                }
+            });
+
+            // 檢查 A 數據重複
+            const aCounts = {};
+            aData.forEach(rowA => {
+                const normName = normalizeProductName(rowA.product);
+                const key = `${normName}|${rowA.value1}`;
+                aCounts[key] = (aCounts[key] || 0) + 1;
+                if (aCounts[key] > 1) {
+                    duplicateProducts.add(normName);
+                }
+            });
+
+            let dupWarningBanner = "";
+            if (duplicateProducts.size > 0) {
+                const dupList = Array.from(duplicateProducts).join(', ');
+                dupWarningBanner = `
+                    <div style="background-color: #fff3cd; color: #856404; padding: 12px; border: 1px solid #ffeeba; border-radius: 5px; margin-bottom: 15px; font-weight: bold; font-size: 1.05em;">
+                        ⚠️ 警告：檢測到輸入數據中有相同的重複產品（如：${dupList}），請確認貼上內容是否重複！
+                    </div>
+                `;
+            }
+            // -------------------------------------------------------------
+
+            resultHTML += `<div class="debug-info">${dupWarningBanner}<h3>📊 最終核對結果：</h3>`;
             resultHTML += '<table class="result-table"><tr><th>B產品</th><th>新手數</th><th>新數值</th><th>B原數據Min. Lot</th><th>B原數值</th><th>變化</th><th>核對目標產品</th><th>最終採納手數</th><th>最終採納數值</th><th>上線Min. Lot</th><th>上線數值</th><th>比較結果</th><th>狀態</th></tr>';
 
             const allProductLots = new Set();
@@ -848,6 +904,12 @@
                     rowClass = 'fail';
                 }
                 
+                // 檢查是否此產品項目有重複
+                const isDup = (bCounts[`${stdName}|${lot}`] > 1) || (aCounts[`${stdName}|${lot}`] > 1);
+                if (isDup) {
+                    validityStatus += ' <span class="dup-warning">⚠️ 重複資料</span>';
+                }
+
                 resultHTML += `<tr class="${rowClass}">
                     <td>${productName}</td>
                     <td>${aLot}</td>
